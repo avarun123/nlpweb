@@ -5,6 +5,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetEncoder;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,6 +28,7 @@ import com.sbux.loyalty.nlp.grammar.RuleEvaluator;
 import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
 import com.sbux.loyalty.nlp.grammar.CCCTopicGrammer.TopicGrammerNode;
 import com.sbux.loyalty.nlp.parsers.CCCTopicGrammerCsvParser;
+import com.sbux.loyalty.nlp.util.VerbatimSearcher;
 
 /**
  * Servlet implementation class NlpWebUat
@@ -40,7 +43,8 @@ public class NlpWebUat extends HttpServlet {
         super();
         // TODO Auto-generated constructor stub
     }
-
+    
+    
 	/**
 	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
 	 */
@@ -51,8 +55,15 @@ public class NlpWebUat extends HttpServlet {
 			String rule = request.getParameter("rule");
 			String verbatim = request.getParameter("verbatim");
 			String getRule = request.getParameter("getRule");
-			
-			if(StringUtils.isNotBlank(rule) && StringUtils.isNotBlank(verbatim)) {
+			String action = request.getParameter("action");
+			 
+			if("getVerbatim".equalsIgnoreCase(action)) {
+				if(StringUtils.isNotBlank(rule)) {
+					List<String> verbatimsForTopic = getVerbatimForRules(rule);
+					responseString=getHtmlForRuleRsponse(request, rule, verbatimsForTopic);
+				}
+			}
+			else if("validateRule".equalsIgnoreCase(action) && StringUtils.isNotBlank(rule) && StringUtils.isNotBlank(verbatim)) {
 				responseString = validateRule(request, response, rule,verbatim);
 			}
 			else if(StringUtils.isNotBlank(getRule)){
@@ -69,6 +80,10 @@ public class NlpWebUat extends HttpServlet {
 		
 	}
 	
+	List<String>  getVerbatimForRules(String ruleString) throws Exception {
+		List<String> verbatims = VerbatimSearcher.getVerbatimForRules(ruleString, 5);
+		return verbatims;
+	}
 	
 	String validateRule(HttpServletRequest request, HttpServletResponse response,String ruleString,String verbatim) throws Exception {
 		List<Rule> ruleList = new ArrayList<>();
@@ -108,9 +123,32 @@ public class NlpWebUat extends HttpServlet {
 //		    requestURL.append("?").append(URLEncoder.encode(request.getQueryString(),"UTF-8"));
 //		}
 //		String completeURL = requestURL.toString();
-		String retValue = "<html><form action=\""+url+"\"> Rule:<br> <input type=\"text\" style=\"width: 1000px;height: 30px\" name=\"rule\" value=\""+ruleString.replace("\"","&#34;").replace("'","&#39;")+"\"><br> verbatim to test:<br>  <input type=\"text\" name=\"verbatim\" style=\"width: 1000px;height: 30px\" value=\""+verbatim.replace("\"","&#34;").replace("'","&#39;")+"\"><br><br> validation result : "+validationResult+" <br> <input type=\"submit\" value=\"Submit\"></form></html>";
+		String retValue = "<html><form action=\""+url+"\"> Rule:<br> <input type=\"text\" style=\"width: 1000px;height: 30px\" name=\"rule\" value=\""+ruleString.replace("\"","&#34;").replace("'","&#39;")+"\">"
+				+"<br> verbatim to test:<br>  <input type=\"text\" name=\"verbatim\" style=\"width: 1000px;height: 30px\" value=\""+verbatim.replace("\"","&#34;").replace("'","&#39;")+"\"><br>"
+						+ "<br> validation result : "+validationResult;
+		retValue+="<br><input type=\"radio\" name=\"action\" value=\"getVerbatim\"> getVerbatim <br> <input type=\"radio\" name=\"action\" value=\"validateRule\" checked=\"checked\"> validateRule<br>";
+		retValue+="<br><input type=\"submit\" value=\"Submit\"></form></html>";
 	    return retValue;
 	}
+	public String getHtmlForRuleRsponse(HttpServletRequest request,String ruleString,List<String> verbatims) throws Exception{
+		String url = request.getRequestURL().toString();
+//		StringBuffer requestURL = request.getRequestURL();
+//		if (request.getQueryString() != null) {
+//		    requestURL.append("?").append(URLEncoder.encode(request.getQueryString(),"UTF-8"));
+//		}
+//		String completeURL = requestURL.toString();
+		String retValue = "<html><form action=\""+url+"\"> Rule:<br> <input type=\"text\" style=\"width: 1000px;height: 30px\" name=\"rule\" value=\""+ruleString.replace("\"","&#34;").replace("'","&#39;")+"\"><br> verbatims <br> ";
+		retValue+="<br> verbatim to test:<br>  <input type=\"text\" name=\"verbatim\" style=\"width: 1000px;height: 30px\" value=\"\"><br>";
+		if(verbatims!=null) {
+			for(String verbatim:verbatims)
+			  retValue+=verbatim.replace("\"","&#34;").replace("'","&#39;")+"<br><br>";
+	    
+		}
+		retValue+="<br><input type=\"radio\" name=\"action\" value=\"getVerbatim\"> getVerbatim <br> <input type=\"radio\" name=\"action\" value=\"validateRule\" checked=\"checked\"> validateRule<br>";
+		retValue+="<br><input type=\"submit\" value=\"Submit\"></form></html>";
+		return retValue;
+	}
+	
 
 	/**
 	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
