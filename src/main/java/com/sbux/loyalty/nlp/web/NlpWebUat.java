@@ -21,13 +21,15 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.sbux.loyalty.nlp.commands.CCCTopicGrammerParseCommand;
 import com.sbux.loyalty.nlp.commands.CsvInputParseComand;
-import com.sbux.loyalty.nlp.databean.ConfigBean;
-import com.sbux.loyalty.nlp.grammar.CCCTopicGrammer;
+import com.sbux.loyalty.nlp.config.CCCConfigBean;
+import com.sbux.loyalty.nlp.databean.CCCDataInputBean;
+import com.sbux.loyalty.nlp.grammar.TopicGrammar;
 import com.sbux.loyalty.nlp.grammar.Rule;
 import com.sbux.loyalty.nlp.grammar.RuleEvaluator;
 import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
-import com.sbux.loyalty.nlp.grammar.CCCTopicGrammer.TopicGrammerNode;
+import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammerNode;
 import com.sbux.loyalty.nlp.parsers.CCCTopicGrammerCsvParser;
+import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.VerbatimSearcher;
 
 /**
@@ -56,7 +58,8 @@ public class NlpWebUat extends HttpServlet {
 			String verbatim = request.getParameter("verbatim");
 			String getRule = request.getParameter("getRule");
 			String action = request.getParameter("action");
-			 
+			if(StringUtils.isNotBlank(verbatim))
+				verbatim = GenericUtil.cleanStringFromNonAsciiChars(verbatim);
 			if("getVerbatim".equalsIgnoreCase(action)) {
 				if(StringUtils.isNotBlank(rule)) {
 					List<String> verbatimsForTopic = getVerbatimForRules(rule);
@@ -88,14 +91,14 @@ public class NlpWebUat extends HttpServlet {
 	String validateRule(HttpServletRequest request, HttpServletResponse response,String ruleString,String verbatim) throws Exception {
 		List<Rule> ruleList = new ArrayList<>();
 		com.sbux.loyalty.nlp.grammar.Rule.getRules(ruleString,ruleList);
-		RuleEvaluator ruleEvaluator = new RuleEvaluator(verbatim,6);
+		RuleEvaluator ruleEvaluator = new RuleEvaluator(new CCCDataInputBean(verbatim),6);
 		boolean result = ruleEvaluator.evaluateRule(ruleList).isMatching();
 		return getHtml(request, ruleString, verbatim, Boolean.toString(result));
 	}
 	String provideRule(HttpServletRequest request, HttpServletResponse response) {
 		try {
 			
-		    CCCTopicGrammer topicGrammar = TopicGrammerContainer.getTopicGrammer(ConfigBean.getInstance());
+		    TopicGrammar topicGrammar = TopicGrammerContainer.getTopicGrammer(CCCConfigBean.getInstance(),"csvolumemaster");
 		    TopicGrammerNode node = topicGrammar.getRoot();
 		    return depthFirstTraverse(node);
 		} catch(Exception e){
