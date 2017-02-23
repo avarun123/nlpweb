@@ -28,7 +28,7 @@ import com.sbux.loyalty.nlp.grammar.Rule;
 import com.sbux.loyalty.nlp.grammar.RuleEvaluator;
 import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammerNode;
-import com.sbux.loyalty.nlp.parsers.CCCTopicGrammerCsvParser;
+import com.sbux.loyalty.nlp.parsers.CCCTopicGrammarCsvParser;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.VerbatimSearcher;
 
@@ -91,7 +91,7 @@ public class NlpWebUat extends HttpServlet {
 	String validateRule(HttpServletRequest request, HttpServletResponse response,String ruleString,String verbatim) throws Exception {
 		List<Rule> ruleList = new ArrayList<>();
 		com.sbux.loyalty.nlp.grammar.Rule.getRules(ruleString,ruleList);
-		RuleEvaluator ruleEvaluator = new RuleEvaluator(new CCCDataInputBean(verbatim),6);
+		RuleEvaluator ruleEvaluator = new RuleEvaluator(new CCCDataInputBean(),6);
 		boolean result = ruleEvaluator.evaluateRule(ruleList).isMatching();
 		return getHtml(request, ruleString, verbatim, Boolean.toString(result));
 	}
