@@ -5,9 +5,9 @@
     xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd"
     version="2.4">
 
-    <display-name>NlpWebUat</display-name>
+    <display-name>NlpWeb</display-name>
     <description>
-       Uat enviorment for Nlp
+      Web service for Nlp
     </description>
 
     
@@ -18,6 +18,15 @@
     	<servlet-name>NlpWebUat</servlet-name>
     	<servlet-class>com.sbux.loyalty.nlp.web.NlpWebUat</servlet-class>
     </servlet>
+     <servlet>
+		<servlet-name>TopicService</servlet-name>
+		<servlet-class>com.sun.jersey.spi.container.servlet.ServletContainer</servlet-class>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>TopicService</servlet-name>
+		<url-pattern>/*</url-pattern>
+	</servlet-mapping> 
     <servlet-mapping>
     	<servlet-name>NlpWebUat</servlet-name>
     	<url-pattern>/NlpWebUat</url-pattern>

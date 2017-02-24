@@ -16,8 +16,8 @@
 
   <dependencies>
    <dependency>
-     <groupId>com.sbux.loyalty.nlp</groupId>
-  <artifactId>nlp</artifactId>
+  <groupId>com.sbux.loyalty.nlp.core</groupId>
+  <artifactId>nlpcore</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   </dependency>
     <dependency>

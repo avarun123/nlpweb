@@ -25,11 +25,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.sbux.loyalty.nlp.Exception.DataProcesingException;
-import com.sbux.loyalty.nlp.aws.CloudWatchClient;
-import com.sbux.loyalty.nlp.aws.S3Client;
+
 import com.sbux.loyalty.nlp.commands.CCCJsonTopicAssignementCommand;
 import com.sbux.loyalty.nlp.commands.CCCSynopsisJsonParseCommand;
-import com.sbux.loyalty.nlp.config.CCCConfigBean;
+import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.config.Channel;
 import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.config.ModelstoApply;
@@ -54,7 +53,7 @@ public class TopicService  {
 	private static final Logger log = Logger.getLogger(TopicService.class);
 	private static Map<String,Boolean> taskStatus= new HashMap<>();
 	@GET
-	  @Produces("application/json")
+	  @Produces("application/text")
 	  public Response about() throws JSONException {
 
 		JSONObject jsonObject = new JSONObject();
@@ -66,8 +65,8 @@ public class TopicService  {
 	
 	
 	  @Path("{channel}/{namespace}/{date}/{modelName}")
-	  @POST
-	  @Produces("application/json")
+	  @GET
+	  @Produces("application/text")
 	  public Response doTopicDetection(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("date") String date,@Context UriInfo ui) throws Exception {
 		try {
 			//GenericSnsMsg msgBean = JsonConvertor.getObjectFromJson(json, GenericSnsMsg.class);
@@ -75,7 +74,7 @@ public class TopicService  {
 
 			// generate a task id
 			 
-			String taskId = UUID.randomUUID().toString();
+			String taskId = UUID.randomUUID().toString().replaceAll("-", "");
 			taskStatus.put(taskId, false);
 			
 			executorService.execute(new Runnable() {
@@ -94,7 +93,7 @@ public class TopicService  {
 
 			executorService.shutdown(); // shut down will happen only after the job is completed, even though it is been called now.
 			
-			return Response.status(200).entity("Topic detection job submitted").build();
+			return Response.status(200).entity("Topic detection job submitted. job id = "+taskId).build();
 		} catch(Exception e){
 			log.error(e);
 			throw e;
@@ -103,10 +102,10 @@ public class TopicService  {
 	  
 	  @Path("{jobId}")
 	  @GET
-	  @Produces("application/json")
+	  @Produces("application/text")
 	  public Response getJobStatus(@PathParam("jobId") String jobId,@Context UriInfo ui) throws Exception {
 		try {
-			 return Response.status(200).entity(taskStatus.get(jobId)).build();
+			 return Response.status(200).entity(taskStatus.get(jobId)==null?"job not found":taskStatus.get(jobId).toString()).build();
 		} catch(Exception e){
 			log.error(e);
 			throw e;
@@ -116,9 +115,11 @@ public class TopicService  {
 	  
 	  private void doTopicDetection(String channelName,String namespace,String modelName,String date) throws DataProcesingException {
 		  try {
+			   String[] dateparts  = date.split("-");
+			   date = dateparts[0]+"/"+dateparts[1]+"/"+dateparts[2];
 			   log.info("Getting topic grammar for namespace "+modelName);
 			  // retrieve the topic grammar 
-			   TopicGrammar grammar = TopicGrammerContainer.getTopicGrammer(modelName);
+			   TopicGrammar grammar = TopicGrammerContainer.getTopicGrammar(modelName);
 			   // create parse command
 			   CCCSynopsisJsonParseCommand parseCommand = new CCCJsonTopicAssignementCommand(grammar);
 			   // create parser to parse data

@@ -21,7 +21,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.sbux.loyalty.nlp.commands.CCCTopicGrammerParseCommand;
 import com.sbux.loyalty.nlp.commands.CsvInputParseComand;
-import com.sbux.loyalty.nlp.config.CCCConfigBean;
+import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.databean.CCCDataInputBean;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar;
 import com.sbux.loyalty.nlp.grammar.Rule;
@@ -30,7 +30,7 @@ import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammerNode;
 import com.sbux.loyalty.nlp.parsers.CCCTopicGrammarCsvParser;
 import com.sbux.loyalty.nlp.util.GenericUtil;
-import com.sbux.loyalty.nlp.util.VerbatimSearcher;
+ 
 
 /**
  * Servlet implementation class NlpWebUat
@@ -60,12 +60,12 @@ public class NlpWebUat extends HttpServlet {
 			String action = request.getParameter("action");
 			if(StringUtils.isNotBlank(verbatim))
 				verbatim = GenericUtil.cleanStringFromNonAsciiChars(verbatim);
-			if("getVerbatim".equalsIgnoreCase(action)) {
-				if(StringUtils.isNotBlank(rule)) {
-					List<String> verbatimsForTopic = getVerbatimForRules(rule);
-					responseString=getHtmlForRuleRsponse(request, rule, verbatimsForTopic);
-				}
-			}
+//			if("getVerbatim".equalsIgnoreCase(action)) {
+//				if(StringUtils.isNotBlank(rule)) {
+//					List<String> verbatimsForTopic = getVerbatimForRules(rule);
+//					responseString=getHtmlForRuleRsponse(request, rule, verbatimsForTopic);
+//				}
+//			}
 			else if("validateRule".equalsIgnoreCase(action) && StringUtils.isNotBlank(rule) && StringUtils.isNotBlank(verbatim)) {
 				responseString = validateRule(request, response, rule,verbatim);
 			}
@@ -83,10 +83,7 @@ public class NlpWebUat extends HttpServlet {
 		
 	}
 	
-	List<String>  getVerbatimForRules(String ruleString) throws Exception {
-		List<String> verbatims = VerbatimSearcher.getVerbatimForRules(ruleString, 5);
-		return verbatims;
-	}
+	 
 	
 	String validateRule(HttpServletRequest request, HttpServletResponse response,String ruleString,String verbatim) throws Exception {
 		List<Rule> ruleList = new ArrayList<>();
@@ -98,7 +95,7 @@ public class NlpWebUat extends HttpServlet {
 	String provideRule(HttpServletRequest request, HttpServletResponse response) {
 		try {
 			
-		    TopicGrammar topicGrammar = TopicGrammerContainer.getTopicGrammer(CCCConfigBean.getInstance(),"csvolumemaster");
+		    TopicGrammar topicGrammar = TopicGrammerContainer.getTopicGrammar(ConfigBean.getInstance(),"csvolumemaster");
 		    TopicGrammerNode node = topicGrammar.getRoot();
 		    return depthFirstTraverse(node);
 		} catch(Exception e){
