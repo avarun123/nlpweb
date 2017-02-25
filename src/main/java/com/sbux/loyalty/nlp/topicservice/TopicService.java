@@ -1,6 +1,7 @@
 package com.sbux.loyalty.nlp.topicservice;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.config.ModelstoApply;
 import com.sbux.loyalty.nlp.config.NameSpace;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
+import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
 import com.sbux.loyalty.nlp.databean.GenericSnsMsg;
 import com.sbux.loyalty.nlp.databean.NlpBean;
 import com.sbux.loyalty.nlp.databean.TopicAssignementOutput;
@@ -123,18 +125,22 @@ public class TopicService  {
 			   // create parse command
 			   CCCSynopsisJsonParseCommand parseCommand = new CCCJsonTopicAssignementCommand(grammar);
 			   // create parser to parse data
-			   CCCSynopsisJsonParser parser = new CCCSynopsisJsonParser();
+			//   CCCSynopsisJsonParser parser = new CCCSynopsisJsonParser();
 			   
 			   // get data location
 			   List<Channel> channels = ConfigBean.getInstance().getData().getChannels();
 			   Channel channel= channels.stream().filter(ch-> ch.getName().equalsIgnoreCase(channelName)).findFirst().get();
 			   NameSpace ns = channel.getNamespaces().stream().filter(nm -> nm.getName().equalsIgnoreCase(namespace)).findFirst().get();
-			   String dataFolder = ns.getDataFolder();
+			   String path = ns.getDataFolder()+"/"+date;
 			   ModelstoApply model = ns.getModelstoApply().stream().filter(m->m.getModel().equalsIgnoreCase(modelName)).findFirst().get();
-			   InputStream objectData = DatasourceClient.getDefaultDatasourceClient().readFile(dataFolder);
+			   InputStream objectData = DatasourceClient.getDefaultDatasourceClient().readFile(path);
 			   log.info("Parsing for topic assignement");
-			   parser.parseFile(objectData, parseCommand,dataFolder+"/"+date);
-			   List<NlpBean> resultSet = parser.getResultSet();
+			   List<DatasourceFile> dataSourceFiles = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(path);
+			   List<NlpBean> resultSet = new ArrayList<>();
+			   for(DatasourceFile df:dataSourceFiles){
+				   parsePath(objectData, parseCommand, df, resultSet);
+			   }
+			  // List<NlpBean> resultSet = parser.getResultSet();
 			   processResultSet(resultSet, model.getTopicOutputFolder()+"/"+date,ns.getName(),date);
 			   
 			} catch(Exception e){
@@ -143,6 +149,34 @@ public class TopicService  {
 			}
 	  }
 	  
+	  /**
+	   * Does a recursive traversal of the directory and processes all the files in the path
+	   * @param objectData
+	   * @param parseCommand
+	   * @param df
+	   * @param resultSet
+	   * @throws Exception
+	   */
+	  protected void parsePath(InputStream objectData,CCCSynopsisJsonParseCommand parseCommand,DatasourceFile df,List<NlpBean> resultSet) throws Exception {
+		  CCCSynopsisJsonParser parser = new CCCSynopsisJsonParser();
+		  if(df.isDirecttory()) {
+			  List<DatasourceFile> dataSourceFiles = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(df.getName());
+			  for(DatasourceFile df_in:dataSourceFiles){
+				  parsePath(objectData, parseCommand, df_in,resultSet);
+			  }
+		  } else {
+			  parser.parseFile(objectData, parseCommand,df.getName());
+			  resultSet.addAll(parser.getResultSet());
+		  }
+	  }
+	  /**
+	   * 
+	   * @param resultSet
+	   * @param outputFolder
+	   * @param namespace
+	   * @param date
+	   * @throws Exception
+	   */
 	  protected void processResultSet(List<NlpBean> resultSet,String outputFolder,String namespace,String date) throws Exception {
 		   StringBuffer sb = null;
 		   for(NlpBean nlpBean:resultSet){
