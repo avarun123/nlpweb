@@ -51,9 +51,9 @@ import com.sbux.loyalty.nlp.util.JsonConvertor;
  * @author aveettil
  *
  */
-@Path("/detecttopics")
-public class TopicService  {
-	private static final Logger log = Logger.getLogger(TopicService.class);
+@Path("/getstats")
+public class StatsService  {
+	private static final Logger log = Logger.getLogger(StatsService.class);
 	private static Map<String,Boolean> taskStatus= new HashMap<>();
 	@GET
 	  @Produces("application/text")
@@ -61,7 +61,7 @@ public class TopicService  {
 
 		JSONObject jsonObject = new JSONObject();
 		 
-		jsonObject.put("Description", " topic service "); 
+		jsonObject.put("Description", " provides topic count statistics "); 
 		String result = jsonObject.toString();
 		return Response.status(200).entity(result).build();
 	  }
