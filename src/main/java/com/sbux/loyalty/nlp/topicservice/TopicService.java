@@ -33,7 +33,7 @@ import com.sbux.loyalty.nlp.commands.CCCSynopsisJsonParseCommand;
 import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.config.Channel;
 import com.sbux.loyalty.nlp.config.ConfigBean;
-import com.sbux.loyalty.nlp.config.ModelstoApply;
+import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.config.NameSpace;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
@@ -44,6 +44,7 @@ import com.sbux.loyalty.nlp.databean.TopicAssignmentOutputBean;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar;
 import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
 import com.sbux.loyalty.nlp.parsers.CCCSynopsisJsonParser;
+import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
 
 /**
@@ -129,11 +130,9 @@ public class TopicService  {
 			//   CCCSynopsisJsonParser parser = new CCCSynopsisJsonParser();
 			   
 			   // get data location
-			   List<Channel> channels = ConfigBean.getInstance().getData().getChannels();
-			   Channel channel= channels.stream().filter(ch-> ch.getName().equalsIgnoreCase(channelName)).findFirst().get();
-			   NameSpace ns = channel.getNamespaces().stream().filter(nm -> nm.getName().equalsIgnoreCase(namespace)).findFirst().get();
+			   NameSpace ns = GenericUtil.getNamespace(channelName, namespace);
 			   String path = ns.getDataFolder()+"/"+date;
-			   ModelstoApply model = ns.getModelstoApply().stream().filter(m->m.getModel().equalsIgnoreCase(modelName)).findFirst().get();
+			   ModelBinding modelBinding = GenericUtil.getModelBinding(ns, modelName);
 			  log.info("Parsing for topic assignement");
 			   List<DatasourceFile> dataSourceFiles = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(path);
 			   List<NlpBean> resultSet = new ArrayList<>();
@@ -141,7 +140,7 @@ public class TopicService  {
 				   parsePath( parseCommand, df, resultSet);
 			   }
 			  // List<NlpBean> resultSet = parser.getResultSet();
-			   processResultSet(resultSet, model.getTopicOutputFolder()+"/"+date,ns.getName(),date);
+			   processResultSet(resultSet, modelBinding.getTopicOutputFolder()+"/"+date,modelBinding.getStatsOutputFolder(),ns.getName(),date);
 			   
 			} catch(Exception e){
 				log.error(e.getMessage(), e);
@@ -179,7 +178,7 @@ public class TopicService  {
 	   * @param date
 	   * @throws Exception
 	   */
-	  protected void processResultSet(List<NlpBean> resultSet,String outputFolder,String namespace,String date) throws Exception {
+	  protected void processResultSet(List<NlpBean> resultSet,String outputFolder,String statsOuptuFolder,String namespace,String date) throws Exception {
 		   StringBuffer sb = null;
 		   // add summary statistics for each topic for the day
 		   Map<String,Integer> topicCounts = new HashMap<>();
@@ -193,9 +192,10 @@ public class TopicService  {
 					   StringBuffer topicPath = new StringBuffer();
                        for(int i=1;i<=6;i++){
                     	   String topicName = topic.getLevels().get(i);
-                    	   if(topicName==null)
+                    	   if(topicName==null) {
                     		   break;
-                    	   topicPath.append(topicName+"/");
+                    	   }
+                    	   topicPath.append((i==1)?topicName: "/"+topicName);
                     	   Integer currentCount = topicCounts.get(topicPath.toString());
                     	   if( currentCount == null)
                     			   topicCounts.put(topicPath.toString(), 1);
@@ -214,7 +214,7 @@ public class TopicService  {
 			   }
 			   log.info("Uploading topic assignement data to  location "+outputFolder+"/data.txt");
 			   try{
-			   DatasourceClient.getDefaultDatasourceClient().createFile(outputFolder+"/data.txt", sb.toString());
+				   DatasourceClient.getDefaultDatasourceClient().createFile(outputFolder+"/data.txt", sb.toString());
 			   } catch(Exception e){
 				   e.printStackTrace( );
 			   }
@@ -223,7 +223,7 @@ public class TopicService  {
 			   log.info("writing summary statistics");
 			   topicCounts.forEach((key,value)->{
 				   try {
-					DatasourceClient.getDefaultDatasourceClient().createFile(outputFolder+"/summary/"+key+"data.txt", value.toString());
+					DatasourceClient.getDefaultDatasourceClient().createFile(statsOuptuFolder+"/"+date+"/"+key+"/data.txt", key + "="+value.toString());
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -236,36 +236,23 @@ public class TopicService  {
 				}
 				   
 			   });
-			   log.info(" successfully uploaded summary statistics to "+outputFolder+"/summary");
+			   log.info(" successfully uploaded summary statistics to "+statsOuptuFolder+"/"+date);
 			   
 		}
 	  
-	  public static void main(String[] args) throws InterruptedException, ExecutionException {
-		  ExecutorService executorService = Executors.newSingleThreadExecutor();
-		  Map<String,Boolean> taskStatus= new HashMap<>();
-		  String taskId = UUID.randomUUID().toString();
-		  taskStatus.put(taskId, false);
-		  Future future = executorService.submit(new Callable()  {
-			  public Object call()  {
-			       for(int i=0;i<10;i++){
-			    	   System.out.println(i);
-			    	   try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-			       }
-			       taskStatus.put(taskId, true);
-			        return true;
-			    }
-			});
-		  executorService.shutdown();
-		 // future.get();
-		  System.out.println("task status = "+taskStatus.get(taskId));
-	      System.out.println("future.get() = "+future.get());
-	      System.out.println("task status = "+taskStatus.get(taskId));
-			
+	  public static void main(String[] args) throws IOException, Exception {
+		 
+		 List<DatasourceFile> files =  DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder("sbux-datascience-nlp/data/ccc/namespaces/csvolumemaster/topic-assignement/2016/08/01/summary");
+		 files.stream().forEach(df->depthFirst(df));
+	  }
+	  
+	  private static void depthFirst(DatasourceFile df) {
+		  if(df.isDirecttory()) {
+			 // path.add(df.get)
+			  depthFirst(df);
+		  }
+		  else
+			  System.out.println(df.getName());
 	  }
 
 

@@ -1,19 +1,14 @@
 package com.sbux.loyalty.nlp.topicservice;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import javax.ws.rs.GET;
-import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -22,28 +17,13 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
 import org.apache.log4j.Logger;
-import org.elasticsearch.common.UUID;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.sbux.loyalty.nlp.Exception.DataProcesingException;
-
-import com.sbux.loyalty.nlp.commands.CCCJsonTopicAssignementCommand;
-import com.sbux.loyalty.nlp.commands.CCCSynopsisJsonParseCommand;
-import com.sbux.loyalty.nlp.config.ConfigBean;
-import com.sbux.loyalty.nlp.config.Channel;
-import com.sbux.loyalty.nlp.config.ConfigBean;
-import com.sbux.loyalty.nlp.config.ModelstoApply;
-import com.sbux.loyalty.nlp.config.NameSpace;
+import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
-import com.sbux.loyalty.nlp.databean.GenericSnsMsg;
-import com.sbux.loyalty.nlp.databean.NlpBean;
-import com.sbux.loyalty.nlp.databean.TopicAssignementOutput;
-import com.sbux.loyalty.nlp.databean.TopicAssignmentOutputBean;
-import com.sbux.loyalty.nlp.grammar.TopicGrammar;
-import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
-import com.sbux.loyalty.nlp.parsers.CCCSynopsisJsonParser;
+import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
 
 /**
@@ -54,7 +34,7 @@ import com.sbux.loyalty.nlp.util.JsonConvertor;
 @Path("/getstats")
 public class StatsService  {
 	private static final Logger log = Logger.getLogger(StatsService.class);
-	private static Map<String,Boolean> taskStatus= new HashMap<>();
+	//private static Map<String,Map<String,Integer>> topicCountMap= new HashMap<>();
 	@GET
 	  @Produces("application/text")
 	  public Response about() throws JSONException {
@@ -67,206 +47,84 @@ public class StatsService  {
 	  }
 	
 	
-	  @Path("{channel}/{namespace}/{date}/{modelName}")
+	  @Path("{channel}/{namespace}/{modelName}/{startDate}/{endDate}")
 	  @GET
 	  @Produces("application/text")
-	  public Response doTopicDetection(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("date") String date,@Context UriInfo ui) throws Exception {
+	  public Response getStats(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("startDate") String startDate,@PathParam("endDate") String endDate,@Context UriInfo ui) throws Exception {
 		try {
-			//GenericSnsMsg msgBean = JsonConvertor.getObjectFromJson(json, GenericSnsMsg.class);
-			ExecutorService executorService = Executors.newSingleThreadExecutor();
-
-			// generate a task id
-			 
-			String taskId = UUID.randomUUID().toString().replaceAll("-", "");
-			taskStatus.put(taskId, false);
-			
-			executorService.execute(new Runnable() {
-			    public void run() {
-			        System.out.println("Topic Detection Job starting");
-			        try {
-						doTopicDetection(channel, namespace,modelName,date);
-						taskStatus.put(taskId, true); // update status of task
-					} catch (DataProcesingException e) {
-					
-						e.printStackTrace();
-						log.error(e);
-					}
-			    }
-			});
-
-			executorService.shutdown(); // shut down will happen only after the job is completed, even though it is been called now.
-			
-			return Response.status(200).entity("Topic detection job submitted. job id = "+taskId).build();
-		} catch(Exception e){
-			log.error(e);
-			throw e;
-		}
-	  }
-	  
-	  @Path("{jobId}")
-	  @GET
-	  @Produces("application/text")
-	  public Response getJobStatus(@PathParam("jobId") String jobId,@Context UriInfo ui) throws Exception {
-		try {
-			 return Response.status(200).entity(taskStatus.get(jobId)==null?"job not found":taskStatus.get(jobId).toString()).build();
-		} catch(Exception e){
-			log.error(e);
-			throw e;
-		}
-	  }
-	  
-	  
-	  private void doTopicDetection(String channelName,String namespace,String modelName,String date) throws DataProcesingException {
-		  try {
-			   String[] dateparts  = date.split("-");
-			   date = dateparts[0]+"/"+dateparts[1]+"/"+dateparts[2];
-			   log.info("Getting topic grammar for namespace "+modelName);
-			  // retrieve the topic grammar 
-			   TopicGrammar grammar = TopicGrammerContainer.getTopicGrammar(modelName);
-			   // create parse command
-			   CCCSynopsisJsonParseCommand parseCommand = new CCCJsonTopicAssignementCommand(grammar);
-			   // create parser to parse data
-			//   CCCSynopsisJsonParser parser = new CCCSynopsisJsonParser();
-			   
-			   // get data location
-			   List<Channel> channels = ConfigBean.getInstance().getData().getChannels();
-			   Channel channel= channels.stream().filter(ch-> ch.getName().equalsIgnoreCase(channelName)).findFirst().get();
-			   NameSpace ns = channel.getNamespaces().stream().filter(nm -> nm.getName().equalsIgnoreCase(namespace)).findFirst().get();
-			   String path = ns.getDataFolder()+"/"+date;
-			   ModelstoApply model = ns.getModelstoApply().stream().filter(m->m.getModel().equalsIgnoreCase(modelName)).findFirst().get();
-			  log.info("Parsing for topic assignement");
-			   List<DatasourceFile> dataSourceFiles = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(path);
-			   List<NlpBean> resultSet = new ArrayList<>();
-			   for(DatasourceFile df:dataSourceFiles){
-				   parsePath( parseCommand, df, resultSet);
-			   }
-			  // List<NlpBean> resultSet = parser.getResultSet();
-			   processResultSet(resultSet, model.getTopicOutputFolder()+"/"+date,ns.getName(),date);
-			   
-			} catch(Exception e){
-				log.error(e.getMessage(), e);
-				throw new DataProcesingException(e.getMessage(), e);
+            
+			ModelBinding modelBinding = GenericUtil.getModelBinding(channel, namespace, modelName);
+			DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+			LocalDate start = LocalDate.parse(startDate),
+			          end   = LocalDate.parse(endDate);
+			Map<String,Map<String,Integer>> topicCountMap = new HashMap<>();
+			Map<String,Integer> topicCountAggregate = new HashMap<>();
+			topicCountMap.put("aggregate",topicCountAggregate);
+			for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+			    
+			    Map<String,Integer> topicCount = getTopicCount(modelBinding.getStatsOutputFolder());
+			    topicCount.forEach((key,value)->{
+			    	if(topicCountAggregate.get(key) == null) {
+			    		topicCountAggregate.put(key,value);
+			    	} else {
+			    		topicCountAggregate.put(key,topicCountAggregate.get(key)+value);
+			    	}
+			    });
+			    topicCountMap.put(format.format(date), topicCount);
+			    
 			}
+			String json = JsonConvertor.getJson(topicCountMap);
+			return Response.status(200).entity(json).build();
+		} catch(Exception e){
+			log.error(e);
+			throw e;
+		}
 	  }
 	  
 	  /**
-	   * Does a recursive traversal of the directory and processes all the files in the path
-	   * @param objectData
-	   * @param parseCommand
-	   * @param df
-	   * @param resultSet
-	   * @throws Exception
-	   */
-	  protected void parsePath(CCCSynopsisJsonParseCommand parseCommand,DatasourceFile df,List<NlpBean> resultSet) throws Exception {
-		  CCCSynopsisJsonParser parser = new CCCSynopsisJsonParser();
-		  if(df.isDirecttory()) {
-			  List<DatasourceFile> dataSourceFiles = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(df.getName());
-			  for(DatasourceFile df_in:dataSourceFiles){
-				  parsePath( parseCommand, df_in,resultSet);
-			  }
-		  } else {
-			  InputStream objectData = DatasourceClient.getDefaultDatasourceClient().readFile(df.getName());
-			   
-			  parser.parseFile(objectData, parseCommand,df.getName());
-			  resultSet.addAll(parser.getResultSet());
-		  }
-	  }
-	  /**
-	   * 
-	   * @param resultSet
-	   * @param outputFolder
+	   * Returns a map of topic counts
+	   * @param channel
 	   * @param namespace
+	   * @param modelName
 	   * @param date
+	   * @return
+	 * @throws Exception 
+	 * @throws IOException 
+	   */
+	  protected Map<String,Integer> getTopicCount(String topicCOuntFolder) throws IOException, Exception {
+		   List<DatasourceFile> files = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(topicCOuntFolder);
+		   Map<String,Integer> countMap = new HashMap<>();
+		   
+			for(DatasourceFile f:files){
+				getTopicCount(f, countMap);
+			}
+		 
+		    return countMap;
+	  }
+	  
+	  /**
+	   * Returns topic count for a given source directory, after recursively traversing through it. Actual count data is assumed to be 
+	   * in a file called data.txt
+	   * @param file
+	   * @param topicCounts
+	   * @throws IOException
 	   * @throws Exception
 	   */
-	  protected void processResultSet(List<NlpBean> resultSet,String outputFolder,String namespace,String date) throws Exception {
-		   StringBuffer sb = null;
-		   // add summary statistics for each topic for the day
-		   Map<String,Integer> topicCounts = new HashMap<>();
-		  // resultSet.stream().forEach(nlpBean->{((TopicAssignementOutput)nlpBean).getTopicAssignements().stream());
-		   for(NlpBean nlpBean:resultSet){
-				   TopicAssignementOutput outBean = (TopicAssignementOutput)nlpBean;
-				   List<TopicAssignmentOutputBean> topicList = outBean.getTopicAssignements();
-				   
-				   for(TopicAssignmentOutputBean topic:topicList) {
-					  // String level1Topic = topic.getLevels().get(1);
-					   StringBuffer topicPath = new StringBuffer();
-                       for(int i=1;i<=6;i++){
-                    	   String topicName = topic.getLevels().get(i);
-                    	   if(topicName==null)
-                    		   break;
-                    	   topicPath.append(topicName+"/");
-                    	   Integer currentCount = topicCounts.get(topicPath.toString());
-                    	   if( currentCount == null)
-                    			   topicCounts.put(topicPath.toString(), 1);
-                    	   else
-                    		   topicCounts.put(topicPath.toString(), currentCount.intValue() + 1);
-                       }
-					   String json = JsonConvertor.getJson(topic);
-					   if(sb == null){
-						   sb = new StringBuffer();
-						   sb.append(json);
-					   } else {
-					        sb.append("\n");
-					        sb.append(json);
-					   }
+	  protected void getTopicCount(DatasourceFile file,Map<String,Integer>  topicCounts) throws IOException, Exception {
+		   List<DatasourceFile> files = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(file.getName());
+		   for(DatasourceFile df:files){
+			   if(df.isDirecttory()){
+				    getTopicCount(df,topicCounts);
+			   } else {
+				   if(df.getName().endsWith("data.txt")){
+					   String[] countData = DatasourceClient.getDefaultDatasourceClient().readFileAsString(df.getName()).split("=");
+					   topicCounts.put(countData[0],Integer.parseInt(countData[1]));
 				   }
 			   }
-			   log.info("Uploading topic assignement data to  location "+outputFolder+"/data.txt");
-			   try{
-			   DatasourceClient.getDefaultDatasourceClient().createFile(outputFolder+"/data.txt", sb.toString());
-			   } catch(Exception e){
-				   e.printStackTrace( );
-			   }
-			   log.info("Successfully uploaded "+resultSet.size()+" instances to  location "+outputFolder+"/data.txt");
-			   
-			   log.info("writing summary statistics");
-			   topicCounts.forEach((key,value)->{
-				   try {
-					DatasourceClient.getDefaultDatasourceClient().createFile(outputFolder+"/summary/"+key+"data.txt", value.toString());
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-					log.error(e.getMessage(),e);
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-					log.error(e.getMessage(),e);
-					//throw e;
-				}
-				   
-			   });
-			   log.info(" successfully uploaded summary statistics to "+outputFolder+"/summary");
-			   
-		}
-	  
-	  public static void main(String[] args) throws InterruptedException, ExecutionException {
-		  ExecutorService executorService = Executors.newSingleThreadExecutor();
-		  Map<String,Boolean> taskStatus= new HashMap<>();
-		  String taskId = UUID.randomUUID().toString();
-		  taskStatus.put(taskId, false);
-		  Future future = executorService.submit(new Callable()  {
-			  public Object call()  {
-			       for(int i=0;i<10;i++){
-			    	   System.out.println(i);
-			    	   try {
-						Thread.sleep(1000);
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-			       }
-			       taskStatus.put(taskId, true);
-			        return true;
-			    }
-			});
-		  executorService.shutdown();
-		 // future.get();
-		  System.out.println("task status = "+taskStatus.get(taskId));
-	      System.out.println("future.get() = "+future.get());
-	      System.out.println("task status = "+taskStatus.get(taskId));
-			
+		   }
 	  }
-
+	  
+	 
+	  
 
 }
