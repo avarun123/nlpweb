@@ -13,9 +13,11 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,6 +37,7 @@ import com.sbux.loyalty.nlp.util.JsonConvertor;
 @Path("/getstats")
 public class StatsService  {
 	private static final Logger log = Logger.getLogger(StatsService.class);
+	public static final Map<String,Map<String,Integer>> topicCountMap = new HashMap<>();;
 	//private static Map<String,Map<String,Integer>> topicCountMap= new HashMap<>();
 	@GET
 	  @Produces("application/text")
@@ -53,17 +56,30 @@ public class StatsService  {
 	  @Produces("application/text")
 	  public Response getStats(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("startDate") String startDate,@PathParam("endDate") String endDate,@Context UriInfo ui) throws Exception {
 		try {
-            
+			 
+			MultivaluedMap<String, String> queryParams = ui.getQueryParameters();
+			String doRefresh = queryParams.getFirst("refresh");
+			boolean refresh = false;
+			if(StringUtils.isNotBlank(doRefresh)) {
+				refresh = Boolean.parseBoolean(doRefresh);
+			}
+			
 			ModelBinding modelBinding = GenericUtil.getModelBinding(channel, namespace, modelName);
 			DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 			LocalDate start = LocalDate.parse(startDate),
 			          end   = LocalDate.parse(endDate);
-			Map<String,Map<String,Integer>> topicCountMap = new HashMap<>();
+			
 			Map<String,Integer> topicCountAggregate = new HashMap<>();
 			topicCountMap.put("aggregate",topicCountAggregate);
 			for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
-			    
-			    Map<String,Integer> topicCount = getTopicCount(modelBinding.getStatsOutputFolder()+"/"+date.toString().replaceAll("-", "/")).get(date.toString());
+				Map<String,Integer> topicCount = null;
+				if(!refresh && topicCountMap.get(date.toString())!=null) { // use the value from cache
+					topicCount = topicCountMap.get(date.toString());
+				} else {
+					 topicCount = getTopicCount(modelBinding.getStatsOutputFolder()+"/"+date.toString().replaceAll("-", "/")).get(date.toString());
+					 topicCountMap.put(date.toString(), topicCount);
+				}
+			   
 			   
 			    topicCount.forEach((key,value)->{
 			    	if(topicCountAggregate.get(key) == null) {
@@ -72,7 +88,7 @@ public class StatsService  {
 			    		topicCountAggregate.put(key,topicCountAggregate.get(key)+value);
 			    	}
 			    });
-			    topicCountMap.put(date.toString(), topicCount);
+			   
 			    
 			}
 			String json = JsonConvertor.getJson(topicCountMap);

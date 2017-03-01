@@ -214,22 +214,9 @@ public class TopicService  {
 			   log.info("writing summary statistics");
 			   Map<String,Map<String,Integer>> m = new HashMap<>();
 			   m.put(date.replace("/", "-"),topicCounts);
+			   StatsService.topicCountMap.put(date.replace("/", "-"),topicCounts); // update the cache
 			   DatasourceClient.getDefaultDatasourceClient().createFile(statsOuptuFolder+"/"+date+"/data.txt",JsonConvertor.getJson(m));
-//			   topicCounts.forEach((key,value)->{
-//				   try {
-//					DatasourceClient.getDefaultDatasourceClient().createFile(statsOuptuFolder+"/"+date+"/"+key+"/data.txt", key + "="+value.toString());
-//				} catch (IOException e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//					log.error(e.getMessage(),e);
-//				} catch (Exception e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//					log.error(e.getMessage(),e);
-//					//throw e;
-//				}
-//				   
-//			   });
+
 			   log.info(" successfully uploaded summary statistics to "+statsOuptuFolder+"/"+date);
 			   
 		}
