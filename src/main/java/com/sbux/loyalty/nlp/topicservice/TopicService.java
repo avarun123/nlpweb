@@ -2,6 +2,7 @@ package com.sbux.loyalty.nlp.topicservice;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -222,9 +223,13 @@ public class TopicService  {
 		}
 	  
 	  public static void main(String[] args) throws IOException, Exception {
-		 
-		 List<DatasourceFile> files =  DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder("sbux-datascience-nlp/data/ccc/namespaces/csvolumemaster/topic-assignement/2016/08/01/summary");
-		 files.stream().forEach(df->depthFirst(df));
+		  String startDate = "2016-01-01";
+		  String endDate = "2016-10-18";
+		  LocalDate start = LocalDate.parse(startDate),
+		           end   = LocalDate.parse(endDate);
+		  for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+			  new TopicService().doTopicDetection("ccc", "default", "csVolumeMaster", date.toString());
+		  }
 	  }
 	  
 	  private static void depthFirst(DatasourceFile df) {
