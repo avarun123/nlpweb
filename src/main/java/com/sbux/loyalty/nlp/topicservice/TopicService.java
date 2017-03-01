@@ -6,14 +6,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import javax.ws.rs.GET;
-import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -27,17 +23,12 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.sbux.loyalty.nlp.Exception.DataProcesingException;
-
 import com.sbux.loyalty.nlp.commands.CCCJsonTopicAssignementCommand;
 import com.sbux.loyalty.nlp.commands.CCCSynopsisJsonParseCommand;
-import com.sbux.loyalty.nlp.config.ConfigBean;
-import com.sbux.loyalty.nlp.config.Channel;
-import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.config.NameSpace;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
-import com.sbux.loyalty.nlp.databean.GenericSnsMsg;
 import com.sbux.loyalty.nlp.databean.NlpBean;
 import com.sbux.loyalty.nlp.databean.TopicAssignementOutput;
 import com.sbux.loyalty.nlp.databean.TopicAssignmentOutputBean;
@@ -221,21 +212,24 @@ public class TopicService  {
 			   log.info("Successfully uploaded "+resultSet.size()+" instances to  location "+outputFolder+"/data.txt");
 			   
 			   log.info("writing summary statistics");
-			   topicCounts.forEach((key,value)->{
-				   try {
-					DatasourceClient.getDefaultDatasourceClient().createFile(statsOuptuFolder+"/"+date+"/"+key+"/data.txt", key + "="+value.toString());
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-					log.error(e.getMessage(),e);
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-					log.error(e.getMessage(),e);
-					//throw e;
-				}
-				   
-			   });
+			   Map<String,Map<String,Integer>> m = new HashMap<>();
+			   m.put(date.replace("/", "-"),topicCounts);
+			   DatasourceClient.getDefaultDatasourceClient().createFile(statsOuptuFolder+"/"+date+"/data.txt",JsonConvertor.getJson(m));
+//			   topicCounts.forEach((key,value)->{
+//				   try {
+//					DatasourceClient.getDefaultDatasourceClient().createFile(statsOuptuFolder+"/"+date+"/"+key+"/data.txt", key + "="+value.toString());
+//				} catch (IOException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//					log.error(e.getMessage(),e);
+//				} catch (Exception e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//					log.error(e.getMessage(),e);
+//					//throw e;
+//				}
+//				   
+//			   });
 			   log.info(" successfully uploaded summary statistics to "+statsOuptuFolder+"/"+date);
 			   
 		}

@@ -20,6 +20,7 @@ import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.google.gson.reflect.TypeToken;
 import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
@@ -62,7 +63,8 @@ public class StatsService  {
 			topicCountMap.put("aggregate",topicCountAggregate);
 			for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
 			    
-			    Map<String,Integer> topicCount = getTopicCount(modelBinding.getStatsOutputFolder());
+			    Map<String,Integer> topicCount = getTopicCount(modelBinding.getStatsOutputFolder()+"/"+date.toString().replaceAll("-", "/")).get(date.toString());
+			   
 			    topicCount.forEach((key,value)->{
 			    	if(topicCountAggregate.get(key) == null) {
 			    		topicCountAggregate.put(key,value);
@@ -70,7 +72,7 @@ public class StatsService  {
 			    		topicCountAggregate.put(key,topicCountAggregate.get(key)+value);
 			    	}
 			    });
-			    topicCountMap.put(format.format(date), topicCount);
+			    topicCountMap.put(date.toString(), topicCount);
 			    
 			}
 			String json = JsonConvertor.getJson(topicCountMap);
@@ -91,15 +93,10 @@ public class StatsService  {
 	 * @throws Exception 
 	 * @throws IOException 
 	   */
-	  protected Map<String,Integer> getTopicCount(String topicCOuntFolder) throws IOException, Exception {
-		   List<DatasourceFile> files = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(topicCOuntFolder);
-		   Map<String,Integer> countMap = new HashMap<>();
-		   
-			for(DatasourceFile f:files){
-				getTopicCount(f, countMap);
-			}
-		 
-		    return countMap;
+	  protected Map<String,Map<String,Integer>> getTopicCount(String topicCOuntFolder) throws IOException, Exception {
+		  String json = DatasourceClient.getDefaultDatasourceClient().readFileAsString(topicCOuntFolder+"/data.txt");
+		  TypeToken<Map<String,Map<String,Integer>>> typeToken = new TypeToken<Map<String,Map<String,Integer>>>() {};
+		  return JsonConvertor.getObjectFromJson(json, typeToken.getType());
 	  }
 	  
 	  /**
