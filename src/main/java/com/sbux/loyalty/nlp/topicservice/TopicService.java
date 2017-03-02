@@ -215,7 +215,7 @@ public class TopicService  {
 			   log.info("writing summary statistics");
 			   Map<String,Map<String,Integer>> m = new HashMap<>();
 			   m.put(date.replace("/", "-"),topicCounts);
-			   StatsService.topicCountMap.put(date.replace("/", "-"),topicCounts); // update the cache
+			   StatsService.topicCountCache.put(date.replace("/", "-"),topicCounts); // update the cache
 			   DatasourceClient.getDefaultDatasourceClient().createFile(statsOuptuFolder+"/"+date+"/data.txt",JsonConvertor.getJson(m));
 
 			   log.info(" successfully uploaded summary statistics to "+statsOuptuFolder+"/"+date);
