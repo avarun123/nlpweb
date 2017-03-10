@@ -72,7 +72,7 @@ public class GrammarService  {
 				json = JsonConvertor.getJson(grammar.getTopicNodes().keySet());
 				
 			} else {
-				json = JsonConvertor.getJson(grammar);
+				json = JsonConvertor.getJson(grammar.getTopicNodes());
 			}
 			return Response.status(200).entity(json).build();
 		} catch(Exception e){
