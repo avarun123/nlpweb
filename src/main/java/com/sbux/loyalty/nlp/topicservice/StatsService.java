@@ -84,11 +84,11 @@ public class StatsService  {
 				} else {
 					 topicCount = getTopicCount(modelBinding.getStatsOutputFolder()+"/"+date.toString().replaceAll("-", "/")).get(date.toString());
 					 topicCountCache.put(date.toString(), topicCount);
-					 if(!aggregateOnly) // if only the aggrgate count over a date range is needed we do not need to put the individual date's data in the final result
-						 topicCountMap.put(date.toString(), topicCount);
 				}
 			   
-			   
+				if(!aggregateOnly) // if only the aggrgate count over a date range is needed we do not need to put the individual date's data in the final result
+					 topicCountMap.put(date.toString(), topicCount);
+				
 			    topicCount.forEach((key,value)->{
 			    	if(topicCountAggregate.get(key) == null) {
 			    		topicCountAggregate.put(key,value);
