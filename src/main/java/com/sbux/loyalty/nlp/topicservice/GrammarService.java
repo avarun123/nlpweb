@@ -69,7 +69,7 @@ public class GrammarService  {
 			String json = null;
 			
 			if("false".equalsIgnoreCase(getRules)) { // need only the node names. Strip rules from json
-				json = JsonConvertor.getJson(grammar.getTopicNodes().values());
+				json = JsonConvertor.getJson(grammar.getTopicNodes().keySet());
 				
 			} else {
 				json = JsonConvertor.getJson(grammar);
