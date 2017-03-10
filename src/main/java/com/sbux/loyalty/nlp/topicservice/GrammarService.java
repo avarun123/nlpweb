@@ -22,6 +22,7 @@ import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
@@ -58,10 +59,21 @@ public class GrammarService  {
 	  @Produces("application/text")
 	  public Response getStats(@PathParam("modelName") String modelName, @Context UriInfo ui) throws Exception {
 		try {
-			 
+			MultivaluedMap<String, String> queryParams = ui.getQueryParameters();
+			
+			String getRules = queryParams.getFirst("getRules"); 
+			if(StringUtils.isBlank(getRules))
+				getRules = "false";
 			TopicGrammar grammar = TopicGrammerContainer.getTopicGrammar(modelName);
 			
-			String json = JsonConvertor.getJson(grammar);
+			String json = null;
+			
+			if("false".equalsIgnoreCase(getRules)) { // need only the node names. Strip rules from json
+				json = JsonConvertor.getJson(grammar.getTopicNodes().values());
+				
+			} else {
+				json = JsonConvertor.getJson(grammar);
+			}
 			return Response.status(200).entity(json).build();
 		} catch(Exception e){
 			log.error(e);
