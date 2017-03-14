@@ -26,6 +26,7 @@ import org.json.JSONObject;
 import com.sbux.loyalty.nlp.Exception.DataProcesingException;
 import com.sbux.loyalty.nlp.commands.CCCJsonTopicAssignementCommand;
 import com.sbux.loyalty.nlp.commands.CCCSynopsisJsonParseCommand;
+import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.config.NameSpace;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
@@ -223,12 +224,19 @@ public class TopicService  {
 		}
 	  
 	  public static void main(String[] args) throws IOException, Exception {
-		  String startDate = "2016-01-01";
+		  ConfigBean.propsFile = "data/sb/blue/CustomerAnalytics/sbux-datascience-nlp/config/config.properties";
+		  String startDate = "2016-01-08";
 		  String endDate = "2016-10-18";
 		  LocalDate start = LocalDate.parse(startDate),
 		           end   = LocalDate.parse(endDate);
+		  
 		  for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+			  System.out.println(date.toString());
+			  try {
 			  new TopicService().doTopicDetection("ccc", "default", "csVolumeMaster", date.toString());
+			  } catch(Exception e) {
+				  e.printStackTrace();
+			  }
 		  }
 	  }
 	  
