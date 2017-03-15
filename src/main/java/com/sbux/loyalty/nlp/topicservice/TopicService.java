@@ -5,8 +5,10 @@ import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -174,7 +176,7 @@ public class TopicService  {
 	  protected void processResultSet(List<NlpBean> resultSet,String outputFolder,String statsOuptuFolder,String namespace,String date) throws Exception {
 		   StringBuffer sb = null;
 		   // add summary statistics for each topic for the day
-		   Map<String,Integer> topicCounts = new HashMap<>();
+		   Map<String,Set<String>> uniqueIncidentSet = new HashMap<>();
 		  // resultSet.stream().forEach(nlpBean->{((TopicAssignementOutput)nlpBean).getTopicAssignements().stream());
 		   for(NlpBean nlpBean:resultSet){
 				   TopicAssignementOutput outBean = (TopicAssignementOutput)nlpBean;
@@ -189,11 +191,12 @@ public class TopicService  {
                     		   break;
                     	   }
                     	   topicPath.append((i==1)?topicName: "/"+topicName);
-                    	   Integer currentCount = topicCounts.get(topicPath.toString());
-                    	   if( currentCount == null)
-                    			   topicCounts.put(topicPath.toString(), 1);
-                    	   else
-                    		   topicCounts.put(topicPath.toString(), currentCount.intValue() + 1);
+                    	   Set currentCount = uniqueIncidentSet.get(topicPath.toString());
+                    	   if( currentCount == null) {
+                    			   uniqueIncidentSet.put(topicPath.toString(), new HashSet<>());
+                    			   
+                    	   }
+                    	   uniqueIncidentSet.get(topicPath.toString()).add(topic.getIncidentId());
                        }
 					   String json = JsonConvertor.getJson(topic);
 					   if(sb == null){
@@ -213,10 +216,12 @@ public class TopicService  {
 			   }
 			   log.info("Successfully uploaded "+resultSet.size()+" instances to  location "+outputFolder+"/data.txt");
 			   
+			   final Map<String,Integer> topicCOunts = new HashMap<>();
+			   uniqueIncidentSet.keySet().stream().forEach(key->{topicCOunts.put(key, uniqueIncidentSet.get(key).size());});
 			   log.info("writing summary statistics");
 			   Map<String,Map<String,Integer>> m = new HashMap<>();
-			   m.put(date.replace("/", "-"),topicCounts);
-			   StatsService.topicCountCache.put(date.replace("/", "-"),topicCounts); // update the cache
+			   m.put(date.replace("/", "-"),topicCOunts);
+			   StatsService.topicCountCache.put(date.replace("/", "-"),topicCOunts); // update the cache
 			   DatasourceClient.getDefaultDatasourceClient().createFile(statsOuptuFolder+"/"+date+"/data.txt",JsonConvertor.getJson(m));
 
 			   log.info(" successfully uploaded summary statistics to "+statsOuptuFolder+"/"+date);
