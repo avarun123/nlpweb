@@ -57,7 +57,7 @@ public class GrammarService  {
 	  @Path("{modelName}")
 	  @GET
 	  @Produces("application/text")
-	  public Response getStats(@PathParam("modelName") String modelName, @Context UriInfo ui) throws Exception {
+	  public Response getModel(@PathParam("modelName") String modelName, @Context UriInfo ui) throws Exception {
 		try {
 			MultivaluedMap<String, String> queryParams = ui.getQueryParameters();
 			
