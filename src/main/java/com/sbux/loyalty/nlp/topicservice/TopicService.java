@@ -76,7 +76,7 @@ public class TopicService  {
 	  @GET
 	  @Produces("application/text")
 	  public Response doTopicDetection(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("date") String date,@PathParam("modelName") String modelName,@Context UriInfo ui) throws Exception {
-			return doTopicDetection(channel, namespace, date, modelName, TopicGrammerContainer.CURRENT_VERSION, ui);
+			return doTopicDetection(channel, namespace, date, modelName, GenericUtil.getRuleBaseModel(modelName).getCurrentVersion(), ui);
 	  }
 	
 	 /**
@@ -238,7 +238,7 @@ public class TopicService  {
                     			   uniqueIncidentSet.put(topicPath.toString(), new HashSet<>());
                     			   
                     	   }
-                    	   uniqueIncidentSet.get(topicPath.toString()).add(topic.getIncidentId());
+                    	   uniqueIncidentSet.get(topicPath.toString()).add(topic.getInput().getTextId());
                        }
 					   String json = JsonConvertor.getJson(topic);
 					   if(sb == null){
@@ -276,11 +276,11 @@ public class TopicService  {
 		  String endDate = "2016-10-18";
 		  LocalDate start = LocalDate.parse(startDate),
 		           end   = LocalDate.parse(endDate);
-		  
+		  String modelName = "csVolumeMaster";
 		  for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
 			  System.out.println(date.toString());
 			  try {
-			  new TopicService().doTopicDetection("ccc", "default", "csVolumeMaster", TopicGrammerContainer.CURRENT_VERSION,date.toString());
+			  new TopicService().doTopicDetection("ccc", "default", modelName, GenericUtil.getRuleBaseModel(modelName).getCurrentVersion(),date.toString());
 			  } catch(Exception e) {
 				  e.printStackTrace();
 			  }
