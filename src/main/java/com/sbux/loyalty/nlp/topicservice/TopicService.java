@@ -177,7 +177,7 @@ public class TopicService  {
 				   parsePath( parseCommand, df, resultSet);
 			   }
 			  // List<NlpBean> resultSet = parser.getResultSet();
-			   processResultSet(resultSet, modelBinding.getTopicOutputFolder()+"/"+date,modelBinding.getStatsOutputFolder(),ns.getName(),date);
+			   processResultSet(resultSet, modelBinding.getTopicOutputFolder()+"/"+modelVersion+"/"+date,modelBinding.getStatsOutputFolder()+"/"+modelVersion,ns.getName(),date);
 			   
 			} catch(Exception e){
 				log.error(e.getMessage(), e);

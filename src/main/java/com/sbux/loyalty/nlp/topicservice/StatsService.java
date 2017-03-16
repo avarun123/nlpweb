@@ -26,6 +26,7 @@ import com.google.gson.reflect.TypeToken;
 import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
+import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
 
@@ -51,10 +52,16 @@ public class StatsService  {
 	  }
 	
 	
-	  @Path("{channel}/{namespace}/{modelName}/{startDate}/{endDate}")
+	@Path("{channel}/{namespace}/{modelName}/{startDate}/{endDate}")
 	  @GET
 	  @Produces("application/text")
 	  public Response getStats(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("startDate") String startDate,@PathParam("endDate") String endDate,@Context UriInfo ui) throws Exception {
+		return  getStats(channel, namespace, modelName, TopicGrammerContainer.CURRENT_VERSION, startDate, endDate, ui);
+	  }
+	  @Path("{channel}/{namespace}/{modelName}/{modelVersion}/{startDate}/{endDate}")
+	  @GET
+	  @Produces("application/text")
+	  public Response getStats(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("modelVersion") double modelVersion,@PathParam("startDate") String startDate,@PathParam("endDate") String endDate,@Context UriInfo ui) throws Exception {
 		try {
 			 
 			MultivaluedMap<String, String> queryParams = ui.getQueryParameters();
@@ -82,7 +89,7 @@ public class StatsService  {
 				if(!refresh && topicCountCache.get(date.toString())!=null) { // use the value from cache
 					topicCount = topicCountCache.get(date.toString());
 				} else {
-					 topicCount = getTopicCount(modelBinding.getStatsOutputFolder()+"/"+date.toString().replaceAll("-", "/")).get(date.toString());
+					 topicCount = getTopicCount(modelBinding.getStatsOutputFolder()+"/"+modelVersion+"/"+date.toString().replaceAll("-", "/")).get(date.toString());
 					 topicCountCache.put(date.toString(), topicCount);
 				}
 			   
