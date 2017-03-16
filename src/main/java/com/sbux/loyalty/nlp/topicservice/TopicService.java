@@ -62,11 +62,38 @@ public class TopicService  {
 		return Response.status(200).entity(result).build();
 	  }
 	
-	
+	/**
+	 * Runs topic detection for a model and its current version
+	 * @param channel
+	 * @param namespace
+	 * @param date
+	 * @param modelName
+	 * @param ui
+	 * @return
+	 * @throws Exception
+	 */
 	  @Path("{channel}/{namespace}/{date}/{modelName}")
 	  @GET
 	  @Produces("application/text")
-	  public Response doTopicDetection(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("date") String date,@Context UriInfo ui) throws Exception {
+	  public Response doTopicDetection(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("date") String date,@PathParam("modelName") String modelName,@Context UriInfo ui) throws Exception {
+			return doTopicDetection(channel, namespace, date, modelName, TopicGrammerContainer.CURRENT_VERSION, ui);
+	  }
+	
+	 /**
+	  * Runs topic detection for a model and a model version
+	  * @param channel
+	  * @param namespace
+	  * @param date
+	  * @param modelName
+	  * @param modelVersion
+	  * @param ui
+	  * @return
+	  * @throws Exception
+	  */
+	  @Path("{channel}/{namespace}/{date}/{modelName}/{modelVersion}")
+	  @GET
+	  @Produces("application/text")
+	  public Response doTopicDetection(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("date") String date,@PathParam("modelName") String modelName,@PathParam("modelVersion") double modelVersion,@Context UriInfo ui) throws Exception {
 		try {
 			//GenericSnsMsg msgBean = JsonConvertor.getObjectFromJson(json, GenericSnsMsg.class);
 			ExecutorService executorService = Executors.newSingleThreadExecutor();
@@ -80,7 +107,7 @@ public class TopicService  {
 			    public void run() {
 			        System.out.println("Topic Detection Job starting");
 			        try {
-						doTopicDetection(channel, namespace,modelName,date);
+						doTopicDetection(channel, namespace,modelName,modelVersion,date);
 						taskStatus.put(taskId, true); // update status of task
 					} catch (DataProcesingException e) {
 					
@@ -99,6 +126,13 @@ public class TopicService  {
 		}
 	  }
 	  
+	  /**
+	   * Returns the status of a job completions. (True or false).
+	   * @param jobId
+	   * @param ui
+	   * @return
+	   * @throws Exception
+	   */
 	  @Path("{jobId}")
 	  @GET
 	  @Produces("application/text")
@@ -111,14 +145,22 @@ public class TopicService  {
 		}
 	  }
 	  
-	  
-	  private void doTopicDetection(String channelName,String namespace,String modelName,String date) throws DataProcesingException {
+	  /**
+	   * Runs topic detection
+	   * @param channelName
+	   * @param namespace
+	   * @param modelName
+	   * @param modelVersion
+	   * @param date
+	   * @throws DataProcesingException
+	   */
+	  private void doTopicDetection(String channelName,String namespace,String modelName,double modelVersion,String date) throws DataProcesingException {
 		  try {
 			   String[] dateparts  = date.split("-");
 			   date = dateparts[0]+"/"+dateparts[1]+"/"+dateparts[2];
 			   log.info("Getting topic grammar for namespace "+modelName);
 			  // retrieve the topic grammar 
-			   TopicGrammar grammar = TopicGrammerContainer.getTopicGrammar(modelName);
+			   TopicGrammar grammar = TopicGrammerContainer.getTopicGrammar(modelName,modelVersion);
 			   // create parse command
 			   CCCSynopsisJsonParseCommand parseCommand = new CCCJsonTopicAssignementCommand(grammar);
 			   // create parser to parse data
@@ -238,7 +280,7 @@ public class TopicService  {
 		  for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
 			  System.out.println(date.toString());
 			  try {
-			  new TopicService().doTopicDetection("ccc", "default", "csVolumeMaster", date.toString());
+			  new TopicService().doTopicDetection("ccc", "default", "csVolumeMaster", TopicGrammerContainer.CURRENT_VERSION,date.toString());
 			  } catch(Exception e) {
 				  e.printStackTrace();
 			  }

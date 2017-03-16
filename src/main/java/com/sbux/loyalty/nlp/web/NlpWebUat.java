@@ -19,7 +19,7 @@ import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.lang3.StringUtils;
  
 
-import com.sbux.loyalty.nlp.commands.CCCTopicGrammerParseCommand;
+import com.sbux.loyalty.nlp.commands.CsvTopicGrammerParseCommand;
 import com.sbux.loyalty.nlp.commands.CsvInputParseComand;
 import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.databean.CCCDataInputBean;
@@ -28,7 +28,7 @@ import com.sbux.loyalty.nlp.grammar.Rule;
 import com.sbux.loyalty.nlp.grammar.RuleEvaluator;
 import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammerNode;
-import com.sbux.loyalty.nlp.parsers.CCCTopicGrammarCsvParser;
+import com.sbux.loyalty.nlp.parsers.CsvTopicGrammarParser;
 import com.sbux.loyalty.nlp.util.GenericUtil;
  
 
@@ -88,7 +88,9 @@ public class NlpWebUat extends HttpServlet {
 	String validateRule(HttpServletRequest request, HttpServletResponse response,String ruleString,String verbatim) throws Exception {
 		List<Rule> ruleList = new ArrayList<>();
 		com.sbux.loyalty.nlp.grammar.Rule.getRules(ruleString,ruleList);
-		RuleEvaluator ruleEvaluator = new RuleEvaluator(new CCCDataInputBean(),6);
+		CCCDataInputBean inputBean = new CCCDataInputBean();
+		inputBean.setText(verbatim);
+		RuleEvaluator ruleEvaluator = new RuleEvaluator(inputBean,6);
 		boolean result = ruleEvaluator.evaluateRule(ruleList).isMatching();
 		return getHtml(request, ruleString, verbatim, Boolean.toString(result));
 	}
