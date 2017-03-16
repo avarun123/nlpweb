@@ -97,7 +97,7 @@ public class NlpWebUat extends HttpServlet {
 	String provideRule(HttpServletRequest request, HttpServletResponse response) {
 		try {
 			
-		    TopicGrammar topicGrammar = TopicGrammerContainer.getTopicGrammar(ConfigBean.getInstance(),"csvolumemaster");
+		    TopicGrammar topicGrammar = TopicGrammerContainer.getTopicGrammar(ConfigBean.getInstance(),"csvolumemaster",TopicGrammerContainer.CURRENT_VERSION);
 		    TopicGrammerNode node = topicGrammar.getRoot();
 		    return depthFirstTraverse(node);
 		} catch(Exception e){
