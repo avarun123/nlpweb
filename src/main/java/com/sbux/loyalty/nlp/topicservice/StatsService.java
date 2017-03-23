@@ -26,6 +26,7 @@ import com.google.gson.reflect.TypeToken;
 import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
+import com.sbux.loyalty.nlp.core.nlpcore.TopicDetectionProcess;
 import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
@@ -38,7 +39,7 @@ import com.sbux.loyalty.nlp.util.JsonConvertor;
 @Path("/getstats")
 public class StatsService  {
 	private static final Logger log = Logger.getLogger(StatsService.class);
-	public static final Map<String,Map<String,Integer>> topicCountCache = new HashMap<>();;
+	
 	//private static Map<String,Map<String,Integer>> topicCountMap= new HashMap<>();
 	@GET
 	  @Produces("application/text")
@@ -86,11 +87,11 @@ public class StatsService  {
 			topicCountMap.put("aggregate",topicCountAggregate);
 			for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
 				Map<String,Integer> topicCount = null;
-				if(!refresh && topicCountCache.get(date.toString())!=null) { // use the value from cache
-					topicCount = topicCountCache.get(date.toString());
+				if(!refresh && TopicDetectionProcess.topicCountCache.get(date.toString())!=null) { // use the value from cache
+					topicCount = TopicDetectionProcess.topicCountCache.get(date.toString());
 				} else {
 					 topicCount = getTopicCount(modelBinding.getStatsOutputFolder()+"/"+modelVersion+"/"+date.toString().replaceAll("-", "/")).get(date.toString());
-					 topicCountCache.put(date.toString(), topicCount);
+					 TopicDetectionProcess.topicCountCache.put(date.toString(), topicCount);
 				}
 			   
 				if(!aggregateOnly) // if only the aggrgate count over a date range is needed we do not need to put the individual date's data in the final result
