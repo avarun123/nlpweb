@@ -46,7 +46,7 @@ import com.sbux.loyalty.nlp.util.JsonConvertor;
  * @author aveettil
  *
  */
-@Path("/grammar")
+@Path("/model")
 public class GrammarService  {
 	private static final Logger log = Logger.getLogger(GrammarService.class);
 	public static final Map<String,Map<String,Integer>> topicCountCache = new HashMap<>();;

@@ -27,15 +27,15 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.sbux.loyalty.nlp.Exception.DataProcesingException;
+import com.sbux.loyalty.nlp.aws.LambdaTopicDetectionProcess;
 import com.sbux.loyalty.nlp.commands.JsonTopicAssignementCommand;
 import com.sbux.loyalty.nlp.commands.JsonFileInputParseCommand;
 import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.config.NameSpace;
+import com.sbux.loyalty.nlp.core.TopicDetectionProcess;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
-import com.sbux.loyalty.nlp.core.nlpcore.LambdaTopicDetectionProcess;
-import com.sbux.loyalty.nlp.core.nlpcore.TopicDetectionProcess;
 import com.sbux.loyalty.nlp.databean.NlpBean;
 import com.sbux.loyalty.nlp.databean.TopicAssignementOutput;
 import com.sbux.loyalty.nlp.databean.TopicAssignmentOutputBean;

@@ -2,6 +2,8 @@ package com.sbux.loyalty.nlp.topicservice;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,15 +28,15 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.sbux.loyalty.nlp.Exception.DataProcesingException;
+import com.sbux.loyalty.nlp.aws.LambdaTopicDetectionProcess;
 import com.sbux.loyalty.nlp.commands.JsonTopicAssignementCommand;
 import com.sbux.loyalty.nlp.commands.JsonFileInputParseCommand;
 import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.config.NameSpace;
+import com.sbux.loyalty.nlp.core.TopicDetectionProcess;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
-import com.sbux.loyalty.nlp.core.nlpcore.LambdaTopicDetectionProcess;
-import com.sbux.loyalty.nlp.core.nlpcore.TopicDetectionProcess;
 import com.sbux.loyalty.nlp.databean.NlpBean;
 import com.sbux.loyalty.nlp.databean.TopicAssignementOutput;
 import com.sbux.loyalty.nlp.databean.TopicAssignmentOutputBean;
@@ -119,6 +121,7 @@ public class TopicService  {
 			        	/****************************AWS Lambda based topic detection*******************************************/
 			        	LambdaTopicDetectionProcess process =new LambdaTopicDetectionProcess(taskId);
 			        	process.doTopicDetection(channel, namespace,modelName,modelVersion,date);
+			        	
 						numParallelTasks.put(taskId,process.getNumParallelTasks());
 						/****************************END OF AWS Lambda based topic detection ************************************/
 						
@@ -158,5 +161,20 @@ public class TopicService  {
 			log.error(e);
 			throw e;
 		}
+	  }
+	  
+	  public static void main(String[] args) throws DataProcesingException {
+		  DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+			LocalDate start = LocalDate.parse("2016-01-01"),
+			          end   = LocalDate.parse("2017-03-20");
+			Map<String,Map<String,Integer>> topicCountMap = new HashMap<>();
+			Map<String,Integer> topicCountAggregate = new HashMap<>();
+			topicCountMap.put("aggregate",topicCountAggregate);
+			for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+				 LambdaTopicDetectionProcess process =new LambdaTopicDetectionProcess(UUID.randomUUID().toString());
+			      	//process.doTopicDetection("ccc", "default","csVolumeMaster",1.0,date.toString());
+				 process.doTopicDetection("appreviews", "appAnnie","csDigitalContacts",1.0,date.toString());
+			}
+		 
 	  }
 }

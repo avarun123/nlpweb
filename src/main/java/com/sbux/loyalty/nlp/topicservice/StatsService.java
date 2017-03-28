@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -24,9 +25,9 @@ import org.json.JSONObject;
 
 import com.google.gson.reflect.TypeToken;
 import com.sbux.loyalty.nlp.config.ModelBinding;
+import com.sbux.loyalty.nlp.core.TopicDetectionProcess;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
-import com.sbux.loyalty.nlp.core.nlpcore.TopicDetectionProcess;
 import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
@@ -57,7 +58,8 @@ public class StatsService  {
 	  @GET
 	  @Produces("application/text")
 	  public Response getStats(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("startDate") String startDate,@PathParam("endDate") String endDate,@Context UriInfo ui) throws Exception {
-		return  getStats(channel, namespace, modelName, TopicGrammerContainer.CURRENT_VERSION, startDate, endDate, ui);
+		 double currentVersion = GenericUtil.getRuleBaseModel(modelName).getCurrentVersion();
+		return  getStats(channel, namespace, modelName, currentVersion, startDate, endDate, ui);
 	  }
 	  @Path("{channel}/{namespace}/{modelName}/{modelVersion}/{startDate}/{endDate}")
 	  @GET
@@ -90,7 +92,7 @@ public class StatsService  {
 				if(!refresh && TopicDetectionProcess.topicCountCache.get(date.toString())!=null) { // use the value from cache
 					topicCount = TopicDetectionProcess.topicCountCache.get(date.toString());
 				} else {
-					 topicCount = getTopicCount(modelBinding.getStatsOutputFolder()+"/"+modelVersion+"/"+date.toString().replaceAll("-", "/")).get(date.toString());
+					 topicCount = getTopicCountForFolder(modelBinding.getStatsOutputFolder()+"/"+modelVersion+"/"+date.toString().replaceAll("-", "/")).get(date.toString());
 					 TopicDetectionProcess.topicCountCache.put(date.toString(), topicCount);
 				}
 			   
@@ -115,6 +117,43 @@ public class StatsService  {
 		}
 	  }
 	  
+	  public Map<String,Map<String,Integer>> getTopicCountForFolder(String topicCOuntFolder) throws IOException, Exception {
+		  List<DatasourceFile> files = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(topicCOuntFolder);
+		  boolean statsFileInFolder = false;
+		  String fileName = null;
+		  for(DatasourceFile df:files){
+			  if(df.getName().endsWith(topicCOuntFolder+"/data.txt")){
+				 statsFileInFolder = true;
+				 fileName = df.getName();
+				 break;
+			  }
+		  }
+		  if(fileName!=null) {
+			  return getTopicCount(fileName);
+		  } else {
+			  //aggregate the child folders topic counts
+			  Map<String,Map<String,Integer>> retValue = new HashMap<>();
+			  for(DatasourceFile df:files){
+				  Map<String,Map<String,Integer>> topicCount = getTopicCount(df.getName());
+				  for(String key:topicCount.keySet()){
+					   if(retValue.get(key) == null) {
+						   retValue.put(key, new HashMap<>());
+					   }
+					   Map<String,Integer> masterMap = retValue.get(key);
+					   Map<String,Integer> subMap = topicCount.get(key);
+					   // keep adding sub maps value to master map
+					   for(Entry<String,Integer> e:subMap.entrySet()) {
+						   if(masterMap.containsKey(e.getKey())) {
+							   masterMap.put(e.getKey(),masterMap.get(e.getKey())+e.getValue());
+						   } else {
+							   masterMap.put(e.getKey(),e.getValue());
+						   }
+					   }
+				  }
+			  }
+			  return retValue;
+		  }
+	  }
 	  /**
 	   * Returns a map of topic counts
 	   * @param channel
@@ -125,8 +164,8 @@ public class StatsService  {
 	 * @throws Exception 
 	 * @throws IOException 
 	   */
-	  protected Map<String,Map<String,Integer>> getTopicCount(String topicCOuntFolder) throws IOException, Exception {
-		  String json = DatasourceClient.getDefaultDatasourceClient().readFileAsString(topicCOuntFolder+"/data.txt");
+	  public Map<String,Map<String,Integer>> getTopicCount(String topicCOuntFolder) throws IOException, Exception {
+		  String json = DatasourceClient.getDefaultDatasourceClient().readFileAsString(topicCOuntFolder.endsWith("/data.txt")?topicCOuntFolder:topicCOuntFolder+"/data.txt");
 		  TypeToken<Map<String,Map<String,Integer>>> typeToken = new TypeToken<Map<String,Map<String,Integer>>>() {};
 		  return JsonConvertor.getObjectFromJson(json, typeToken.getType());
 	  }
@@ -153,7 +192,9 @@ public class StatsService  {
 		   }
 	  }
 	  
-	 
+	 public static void main(String[] args) throws IOException, Exception {
+		 System.out.println(JsonConvertor.getJson(new StatsService().getTopicCountForFolder("sbux-datascience-nlp/data/ccc/namespaces/csVolumeMaster/stats/2016/09/02")));
+	 }
 	  
 
 }
