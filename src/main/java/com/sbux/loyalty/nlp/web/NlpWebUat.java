@@ -26,8 +26,8 @@ import com.sbux.loyalty.nlp.databean.CCCDataInputBean;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar;
 import com.sbux.loyalty.nlp.grammar.Rule;
 import com.sbux.loyalty.nlp.grammar.RuleEvaluator;
-import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
-import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammerNode;
+import com.sbux.loyalty.nlp.grammar.TopicGrammarContainer;
+import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammarNode;
 import com.sbux.loyalty.nlp.parsers.CsvTopicGrammarParser;
 import com.sbux.loyalty.nlp.util.GenericUtil;
  
@@ -97,8 +97,8 @@ public class NlpWebUat extends HttpServlet {
 	String provideRule(HttpServletRequest request, HttpServletResponse response) {
 		try {
 			
-		    TopicGrammar topicGrammar = TopicGrammerContainer.getTopicGrammar(ConfigBean.getInstance(),"csvolumemaster",TopicGrammerContainer.CURRENT_VERSION);
-		    TopicGrammerNode node = topicGrammar.getRoot();
+		    TopicGrammar topicGrammar = TopicGrammarContainer.getTopicGrammar(ConfigBean.getInstance(),"csvolumemaster",TopicGrammarContainer.CURRENT_VERSION);
+		    TopicGrammarNode node = topicGrammar.getRoot();
 		    return depthFirstTraverse(node);
 		} catch(Exception e){
 			e.printStackTrace( );
@@ -106,13 +106,13 @@ public class NlpWebUat extends HttpServlet {
 		}
 		return "";
 	}
-	public static String depthFirstTraverse(TopicGrammerNode root) throws Exception {
-		TopicGrammerNode node = root;
+	public static String depthFirstTraverse(TopicGrammarNode root) throws Exception {
+		TopicGrammarNode node = root;
          if(!root.name.equals("root")) {
 			 // there are about 600 rules. generate them uniform
         	 return "";
 		 }
- 		for(TopicGrammerNode n:root.children){
+ 		for(TopicGrammarNode n:root.children){
  			depthFirstTraverse(n);
  		}
 	 	return "";

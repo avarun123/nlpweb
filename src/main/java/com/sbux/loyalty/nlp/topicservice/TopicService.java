@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -37,11 +38,16 @@ import com.sbux.loyalty.nlp.config.NameSpace;
 import com.sbux.loyalty.nlp.core.TopicDetectionProcess;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
+import com.sbux.loyalty.nlp.databean.GrammarDiffRequestBody;
 import com.sbux.loyalty.nlp.databean.NlpBean;
 import com.sbux.loyalty.nlp.databean.TopicAssignementOutput;
 import com.sbux.loyalty.nlp.databean.TopicAssignmentOutputBean;
+import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor;
+import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor.GrammarDelta;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar;
-import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
+import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammarNode;
+import com.sbux.loyalty.nlp.grammar.TopicGrammarContainer;
+
 import com.sbux.loyalty.nlp.parsers.InputJsonParser;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
@@ -84,6 +90,8 @@ public class TopicService  {
 	  public Response doTopicDetection(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("date") String date,@PathParam("modelName") String modelName,@Context UriInfo ui) throws Exception {
 			return doTopicDetection(channel, namespace, date, modelName, GenericUtil.getRuleBaseModel(modelName).getCurrentVersion(), ui);
 	  }
+	  
+	 
 	
 	 /**
 	  * Runs topic detection for a model and a model version
@@ -165,15 +173,17 @@ public class TopicService  {
 	  
 	  public static void main(String[] args) throws DataProcesingException {
 		  DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-			LocalDate start = LocalDate.parse("2016-01-01"),
-			          end   = LocalDate.parse("2017-03-20");
+			LocalDate start = LocalDate.parse("2016-02-01"),
+			          end   = LocalDate.parse("2016-03-31");
 			Map<String,Map<String,Integer>> topicCountMap = new HashMap<>();
 			Map<String,Integer> topicCountAggregate = new HashMap<>();
 			topicCountMap.put("aggregate",topicCountAggregate);
 			for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
 				 LambdaTopicDetectionProcess process =new LambdaTopicDetectionProcess(UUID.randomUUID().toString());
+				//TopicDetectionProcess process =new  TopicDetectionProcess( );
 			      	//process.doTopicDetection("ccc", "default","csVolumeMaster",1.0,date.toString());
-				 process.doTopicDetection("appreviews", "appAnnie","csDigitalContacts",1.0,date.toString());
+				 process.doTopicDetection("ccc", "default","csAllVolume",1.0,date.toString());
+				 //process.doTopicDetection("appreviews", "appAnnie","csDigitalContacts",1.0,date.toString());
 			}
 		 
 	  }

@@ -40,7 +40,7 @@ import com.sbux.loyalty.nlp.databean.NlpBean;
 import com.sbux.loyalty.nlp.databean.TopicAssignementOutput;
 import com.sbux.loyalty.nlp.databean.TopicAssignmentOutputBean;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar;
-import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
+import com.sbux.loyalty.nlp.grammar.TopicGrammarContainer;
 import com.sbux.loyalty.nlp.parsers.InputJsonParser;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;

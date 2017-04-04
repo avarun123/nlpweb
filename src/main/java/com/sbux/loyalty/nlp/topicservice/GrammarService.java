@@ -4,12 +4,15 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -21,23 +24,30 @@ import javax.ws.rs.core.UriInfo;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.elasticsearch.common.mvel2.optimizers.impl.refl.nodes.ArrayLength;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.amazonaws.services.kinesis.model.InvalidArgumentException;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+import com.sbux.loyalty.nlp.commands.JsonFileInputParseCommand;
 import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.config.RuleBasedModel;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
 import com.sbux.loyalty.nlp.databean.CCCDataInputBean;
+import com.sbux.loyalty.nlp.databean.GrammarDiffRequestBody;
+import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor;
 import com.sbux.loyalty.nlp.grammar.JsonTopicGrammar;
 import com.sbux.loyalty.nlp.grammar.TopicAssigner;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar;
-import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
+import com.sbux.loyalty.nlp.grammar.TopicGrammarContainer;
+import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor.GrammarDelta;
+import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammarNode;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
 
@@ -49,9 +59,10 @@ import com.sbux.loyalty.nlp.util.JsonConvertor;
 @Path("/model")
 public class GrammarService  {
 	private static final Logger log = Logger.getLogger(GrammarService.class);
+	int MAX_COMPARISON_SET_SIZE = 200;
 	public static final Map<String,Map<String,Integer>> topicCountCache = new HashMap<>();;
 	//private static Map<String,Map<String,Integer>> topicCountMap= new HashMap<>();
-	@GET
+	  @GET
 	  @Produces("application/text")
 	  public Response about() throws JSONException {
 
@@ -62,7 +73,98 @@ public class GrammarService  {
 		return Response.status(200).entity(result).build();
 	  }
 	
+	  /**
+	   * Returns all existing models and current version names
+	   * @param modelName
+	   * @param versionNumber
+	   * @param ui
+	   * @return
+	   * @throws Exception
+	   */
+	  @Path("models")
+	  @GET
+	  @Produces("application/text")
+	  public Response getAllModels(@PathParam("modelName") String modelName,@PathParam("version") double versionNumber, @Context UriInfo ui) throws Exception {
+		 try {
+			 ConfigBean.reset(); // force to get the latest from data source instead of cached configuration.
+			 String json = JsonConvertor.getJson(ConfigBean.getInstance().getRuleBasedModels());
+			 return Response.status(200).entity(json).build();
+		 } catch(Exception e){
+			 log.error(e);
+			 return Response.status(500).entity(e.getMessage()).build();
+		 }
+	  }
 	
+	  
+	  @Path("/diff/{channel}/{namespace}/{modelName}/{modelVersion}")
+	  @POST
+	  @Produces("application/text")
+	  public Response getDiff(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("modelVersion") double modelVersion,@Context UriInfo ui,String requestBodyJson) throws Exception {
+		  // get the comparison base
+		  ModelBinding modelBinding = GenericUtil.getModelBinding(channel, namespace, modelName);
+		  int comparisonBaseSize = 100;
+		  MultivaluedMap<String, String> queryParams = ui.getQueryParameters();
+		  String size = queryParams.getFirst("limit");
+		  if(StringUtils.isNotBlank(size)) {
+			  comparisonBaseSize = Integer.parseInt(size);
+		  }
+		  if(modelBinding == null){
+			  return Response.status(404).entity("No model binding for  channel = "+channel+" namespace = "+namespace+" modelName = "+modelName+" found").build();
+		  }
+		  
+		  String dataFolder = GenericUtil.getNamespace(channel, namespace).getDataFolder();
+		  
+		  GrammarDiffRequestBody grammarDiffRequestBody = JsonConvertor.getObjectFromJson(requestBodyJson, GrammarDiffRequestBody.class);
+		  String topicToTextFolder = GenericUtil.getTopicToTextOutputFolder(modelBinding.getTopicToTextFolder(), modelVersion, grammarDiffRequestBody.getTopicPathWihtoutModelName(), null, -1);
+		  // we get the topicToTextFolder for the topic path. get all the dates and sequenceNumber associated with the data. That will form as the basis for comparison
+		  // why? because input data in those files contains the given topic
+		  List<DatasourceFile> dataSourceFiles = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(topicToTextFolder);
+		  String dataFolderContainingTopic  = null;
+		  String topicToTextFile = null;
+		  for(DatasourceFile df:dataSourceFiles) {
+			  String dateAndSequenceNumber = GenericUtil.getDateAndSequenceNumberFromTopicToTextOutputFolder(df.getName());
+			   dataFolderContainingTopic = dataFolder+"/"+dateAndSequenceNumber;
+			   topicToTextFile = df.getName();
+			   break;
+		  }
+		  if(dataFolderContainingTopic == null) {
+			  return Response.status(404).entity("No text data found which belongs to the topic "+grammarDiffRequestBody.getTopicPath()).build();
+		  }
+		  String[] lines = DatasourceClient.getDefaultDatasourceClient().readFileAsString(dataFolderContainingTopic).split("\n");
+		  List<String> comparisonSet = new ArrayList<>();
+		  int i=0;
+		  for(String line:lines){
+			  i++;
+			  
+			  JsonFileInputParseCommand command = new JsonFileInputParseCommand(channel, namespace);
+			  command.setRow(line).parse(null);
+			  String text = command.getJsonNlpInputBean().getText();
+			  comparisonSet.add(text);
+			  if(i==comparisonBaseSize) // limiting the size
+				  break;
+		  }
+		  // add lines from the topic to Text
+		   lines = DatasourceClient.getDefaultDatasourceClient().readFileAsString(topicToTextFile).split("\n");
+		   i=0;
+		  for(String line:lines) {
+			  i++;
+			  comparisonSet.add(line);
+			 
+			  if(i==comparisonBaseSize) // limiting the size
+				  break;
+		  }
+		  TopicGrammar grammar = TopicGrammarContainer.getTopicGrammar(modelName, modelVersion);
+		  TopicGrammarNode node = grammar.getNodeWithPath(grammarDiffRequestBody.getTopicPath());
+		  GrammarDelta delta = new GrammarDeltaProcessor().getDelta(node, grammarDiffRequestBody.getNewConstraints(), comparisonSet , true, 5);
+		  // get the topicToReviews
+		  String json = JsonConvertor.getJson(delta);
+		  return Response.status(200).entity(json).build(); 
+	  }
+	  
+	  private void addToCOmparisonBase(String[] lines,List<String> comparisonSet,String channel,String namespace,int  comparisonBaseSize){
+		  
+	  }
+	  
 	/**
 	 * Returns the grammar for a model name and version
 	 * @param modelName
@@ -74,14 +176,14 @@ public class GrammarService  {
 	  @Path("{modelName}/{version}")
 	  @GET
 	  @Produces("application/text")
-	  public Response getModel(@PathParam("modelName") String modelName,@PathParam("versionName") double versionNumber, @Context UriInfo ui) throws Exception {
+	  public Response getModel(@PathParam("modelName") String modelName,@PathParam("version") double versionNumber, @Context UriInfo ui) throws Exception {
 		try {
 			MultivaluedMap<String, String> queryParams = ui.getQueryParameters();
 			
 			String getRules = queryParams.getFirst("getRules"); 
 			if(StringUtils.isBlank(getRules))
 				getRules = "false";
-			TopicGrammar grammar = TopicGrammerContainer.getTopicGrammar(modelName,versionNumber);
+			TopicGrammar grammar = TopicGrammarContainer.getTopicGrammar(modelName,versionNumber);
 			
 			String json = null;
 			
@@ -109,8 +211,46 @@ public class GrammarService  {
 		  @GET
 		  @Produces("application/text")
 		  public Response getModel(@PathParam("modelName") String modelName, @Context UriInfo ui) throws Exception {
-			return getModel(modelName, TopicGrammerContainer.CURRENT_VERSION, ui);
+			return getModel(modelName, TopicGrammarContainer.CURRENT_VERSION, ui);
 		  }
+		  
+		  /**
+		   * Deletes a model name and current version from cache
+		   * @param modelName
+		   * @param ui
+		   * @return
+		   * @throws Exception
+		   */
+		  @Path("cache/{modelName}")
+		  @DELETE
+		  @Produces("application/text")
+		  public Response deleteModelFromcache(@PathParam("modelName") String modelName, @Context UriInfo ui) {
+			  try {
+				double version = GenericUtil.getRuleBaseModel(modelName).getCurrentVersion();
+				TopicGrammarContainer.deleteFromCache(modelName, version);
+				return Response.status(200).entity("Successfully deleted model "+modelName+" version "+version+" from cache").build();
+			  } catch(Exception e) {
+				  log.error(e);
+				  return Response.status(500).entity("Error : "+e.getMessage()).build();
+			 }
+		  }
+		  
+		  /**
+		   * Deletes a model name and version from cache
+		   * @param modelName
+		   * @param version
+		   * @param ui
+		   * @return
+		   * @throws Exception
+		   */
+		  @Path("cache/{modelName}/{version}")
+		  @DELETE
+		  @Produces("application/text")
+		  public Response deleteModelFromcache(@PathParam("modelName") String modelName, @PathParam("version") double version,@Context UriInfo ui) throws Exception {
+			TopicGrammarContainer.deleteFromCache(modelName, version);
+			return Response.status(200).entity("Successfully deleted model "+modelName+" version "+version+" from cache").build();
+		  }
+		  
 	  
 	  /**
 	   * Updates a model and returns the latest version after updating it.
@@ -129,6 +269,11 @@ public class GrammarService  {
 			if(modelValidationResult.isValid) {
 				// update the model with a new version
 				RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
+				if(model == null) {
+					// TODO - this needs to implement creation of a new model if it is not already existing.
+					// JIRA - https://starbucks-analytics.atlassian.net/browse/DS-1056
+					throw new InvalidArgumentException("Model is not existing. Feature to create a model through API is not yet implemented");
+				}
 				double newVersion = model.getCurrentVersion()+1.0;
 				String newVersionFilePath = model.getGrammarFileLocation()+"/"+newVersion+"/"+model.getFileName();
 				

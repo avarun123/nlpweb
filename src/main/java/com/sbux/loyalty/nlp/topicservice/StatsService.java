@@ -1,6 +1,7 @@
 package com.sbux.loyalty.nlp.topicservice;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -28,7 +29,7 @@ import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.core.TopicDetectionProcess;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
-import com.sbux.loyalty.nlp.grammar.TopicGrammerContainer;
+import com.sbux.loyalty.nlp.grammar.TopicGrammarContainer;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
 
@@ -66,7 +67,6 @@ public class StatsService  {
 	  @Produces("application/text")
 	  public Response getStats(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("modelVersion") double modelVersion,@PathParam("startDate") String startDate,@PathParam("endDate") String endDate,@Context UriInfo ui) throws Exception {
 		try {
-			 
 			MultivaluedMap<String, String> queryParams = ui.getQueryParameters();
 			String doRefresh = queryParams.getFirst("refresh");
 			
@@ -89,11 +89,12 @@ public class StatsService  {
 			topicCountMap.put("aggregate",topicCountAggregate);
 			for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
 				Map<String,Integer> topicCount = null;
-				if(!refresh && TopicDetectionProcess.topicCountCache.get(date.toString())!=null) { // use the value from cache
-					topicCount = TopicDetectionProcess.topicCountCache.get(date.toString());
+				String cacheKey = modelBinding.getStatsOutputFolder()+"/"+modelVersion+"/"+date.toString().replaceAll("-", "/");
+				if(!refresh && TopicDetectionProcess.topicCountCache.get(cacheKey)!=null) { // use the value from cache
+					topicCount = TopicDetectionProcess.topicCountCache.get(cacheKey);
 				} else {
-					 topicCount = getTopicCountForFolder(modelBinding.getStatsOutputFolder()+"/"+modelVersion+"/"+date.toString().replaceAll("-", "/")).get(date.toString());
-					 TopicDetectionProcess.topicCountCache.put(date.toString(), topicCount);
+					 topicCount = getTopicCountForFolder(cacheKey).get(date.toString());
+					 TopicDetectionProcess.topicCountCache.put(cacheKey, topicCount);
 				}
 			   
 				if(!aggregateOnly) // if only the aggrgate count over a date range is needed we do not need to put the individual date's data in the final result
