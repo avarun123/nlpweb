@@ -121,11 +121,12 @@ public class GrammarService  {
 	  
 	  
 	  @Path("/validate/{modelName}/{modelVersion}")
-	  @POST
-	  @Produces("application/text")
-	  public Response validateModel(@PathParam("modelName") String modelName,@PathParam("modelVersion") double modelVersion,@Context UriInfo ui,String json) throws Exception {
+	  @GET
+	  @Produces("application/json")
+	  public Response validateModel(@PathParam("modelName") String modelName,@PathParam("modelVersion") double modelVersion,@Context UriInfo ui) throws Exception {
+		  TopicGrammar grammar = TopicGrammarContainer.getTopicGrammar(modelName, modelVersion);
 		  ModelValidator modelValidator = new ModelValidator();
-		  ModelValidationResult result = modelValidator.validateModel(json);
+		  ModelValidationResult result = modelValidator.validateModel(grammar);
 		  if(result.isSuccess())
 		      return Response.status(200).entity("SUCCESS").build(); 
 		  else
@@ -133,12 +134,12 @@ public class GrammarService  {
 	  }
 	  
 	  @Path("/validate/{modelName}")
-	  @POST
-	  @Produces("application/text")
-	  public Response validateModel(@PathParam("modelName") String modelName,@Context UriInfo ui,String json) throws Exception {
+	  @GET
+	  @Produces("application/json")
+	  public Response validateModel(@PathParam("modelName") String modelName,@Context UriInfo ui) throws Exception {
 		// update the model with a new version
 			RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
-			return validateModel(modelName, model.getCurrentVersion(), ui, json);
+			return validateModel(modelName, model.getCurrentVersion(), ui);
 	  }
 	  
 	  
