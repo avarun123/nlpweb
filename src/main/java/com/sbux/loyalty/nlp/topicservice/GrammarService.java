@@ -47,6 +47,8 @@ import com.sbux.loyalty.nlp.databean.GrammarDiffRequestBody;
 import com.sbux.loyalty.nlp.databean.SimpleNlpInputBean;
 import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor;
 import com.sbux.loyalty.nlp.grammar.JsonTopicGrammar;
+import com.sbux.loyalty.nlp.grammar.ModelValidator;
+import com.sbux.loyalty.nlp.grammar.ModelValidator.ModelValidationResult;
 import com.sbux.loyalty.nlp.grammar.Rule;
 import com.sbux.loyalty.nlp.grammar.TopicAssigner;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar;
@@ -116,6 +118,29 @@ public class GrammarService  {
 		  DiffResult diffResult = getDiff(channel, namespace, modelName, modelVersion, requestBodyJson, comparisonBaseSize);
 		  return Response.status(diffResult.responseCode).entity(diffResult.json == null?diffResult.errorMEssage:diffResult.json ).build(); 
 	  }
+	  
+	  
+	  @Path("/validate/{modelName}/{modelVersion}")
+	  @POST
+	  @Produces("application/text")
+	  public Response validateModel(@PathParam("modelName") String modelName,@PathParam("modelVersion") double modelVersion,@Context UriInfo ui,String json) throws Exception {
+		  ModelValidator modelValidator = new ModelValidator();
+		  ModelValidationResult result = modelValidator.validateModel(json);
+		  if(result.isSuccess())
+		      return Response.status(200).entity("SUCCESS").build(); 
+		  else
+			  return Response.status(200).entity(JsonConvertor.getJson(result.getErrorMessages())).build(); 
+	  }
+	  
+	  @Path("/validate/{modelName}")
+	  @POST
+	  @Produces("application/text")
+	  public Response validateModel(@PathParam("modelName") String modelName,@Context UriInfo ui,String json) throws Exception {
+		// update the model with a new version
+			RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
+			return validateModel(modelName, model.getCurrentVersion(), ui, json);
+	  }
+	  
 	  
 	  public static class DiffResult {
 		  String json;
@@ -263,8 +288,8 @@ public class GrammarService  {
 	  public Response updateModel(@PathParam("modelName") String modelName, @Context UriInfo ui,String json) throws Exception {
 		try {
 			// validate model
-			 ModelValidationResult modelValidationResult= validateModel(json);
-			if(modelValidationResult.isValid) {
+			ModelValidator.ModelValidationResult modelValidationResult= new ModelValidator().validateModel(json);
+			if(modelValidationResult.isSuccess()) {
 				// update the model with a new version
 				RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
 				if(model == null) {
@@ -284,7 +309,7 @@ public class GrammarService  {
 				// TODO: store the diff
 				return Response.status(201).entity(newVersion).build();
 			} else {
-				return Response.status(400).entity("Invalid model : Excption is " +modelValidationResult.errorMsg).build();
+				return Response.status(400).entity("Invalid model : Excption is " +JsonConvertor.getJson(modelValidationResult.getErrorMessages())).build();
 			}
 		} catch(Exception e){
 			log.error(e);
@@ -387,38 +412,7 @@ public class GrammarService  {
 		  return Response.status(200).entity(currentVersion).build();
 	  }
 	  
-	  /**
-	   * validates a model
-	   * @param json
-	   * @return
-	   */
-	  public ModelValidationResult validateModel(String json) {
-		  // first validate that this is a valid json
-		  try {
-			  JsonTopicGrammar grammar = new JsonTopicGrammar();
-			  grammar.parse(json);
-			  boolean result =  !grammar.getGrammar().getTopicNodes().isEmpty() && grammar.getGrammar().getTopicNodes().size() > 0;
-			  // do a vanilla topic assignement
-			  Map<String,Set<Rule>> matchedRulesForEachTopic = new HashMap<>();
-			  new TopicAssigner(grammar.getGrammar()).doTopicAssignement(new SimpleNlpInputBean("Starbucks promotion is great"), true, 5,false);
-			  // ensure that there are 
-		  } catch(Exception e){
-			  e.printStackTrace();
-			  return new ModelValidationResult(false, e.getMessage());
-		  }
-		  return new ModelValidationResult(true, "");
-	  }
 	  
-	  private static class ModelValidationResult {
-		  boolean isValid;
-		  String errorMsg;
-		public ModelValidationResult(boolean isValid, String errorMsg) {
-			super();
-			this.isValid = isValid;
-			this.errorMsg = errorMsg;
-		}
-		  
-	  }
 	  /**
 	   * Returns a map of topic counts
 	   * @param channel
