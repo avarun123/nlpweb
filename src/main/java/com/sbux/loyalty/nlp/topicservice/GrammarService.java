@@ -6,8 +6,10 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -33,6 +35,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+import com.sbux.loyalty.nlp.Exception.InvalidGrammarException;
 import com.sbux.loyalty.nlp.commands.JsonFileInputParseCommand;
 import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.config.ModelBinding;
@@ -41,8 +44,10 @@ import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
 import com.sbux.loyalty.nlp.databean.CCCDataInputBean;
 import com.sbux.loyalty.nlp.databean.GrammarDiffRequestBody;
+import com.sbux.loyalty.nlp.databean.SimpleNlpInputBean;
 import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor;
 import com.sbux.loyalty.nlp.grammar.JsonTopicGrammar;
+import com.sbux.loyalty.nlp.grammar.Rule;
 import com.sbux.loyalty.nlp.grammar.TopicAssigner;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar;
 import com.sbux.loyalty.nlp.grammar.TopicGrammarContainer;
@@ -50,6 +55,7 @@ import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor.GrammarDelta;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammarNode;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
+import com.sbux.loyalty.nlp.util.TextCache;
 
 /**
  * This REST end point is to do CRUD operations on topic grammar.
@@ -59,7 +65,7 @@ import com.sbux.loyalty.nlp.util.JsonConvertor;
 @Path("/model")
 public class GrammarService  {
 	private static final Logger log = Logger.getLogger(GrammarService.class);
-	int MAX_COMPARISON_SET_SIZE = 200;
+	int MAX_COMPARISON_SET_SIZE = 2000;
 	public static final Map<String,Map<String,Integer>> topicCountCache = new HashMap<>();;
 	//private static Map<String,Map<String,Integer>> topicCountMap= new HashMap<>();
 	  @GET
@@ -100,69 +106,61 @@ public class GrammarService  {
 	  @POST
 	  @Produces("application/text")
 	  public Response getDiff(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("modelVersion") double modelVersion,@Context UriInfo ui,String requestBodyJson) throws Exception {
-		  // get the comparison base
-		  ModelBinding modelBinding = GenericUtil.getModelBinding(channel, namespace, modelName);
-		  int comparisonBaseSize = 100;
 		  MultivaluedMap<String, String> queryParams = ui.getQueryParameters();
 		  String size = queryParams.getFirst("limit");
+		  int comparisonBaseSize = MAX_COMPARISON_SET_SIZE;
+			 
 		  if(StringUtils.isNotBlank(size)) {
 			  comparisonBaseSize = Integer.parseInt(size);
 		  }
-		  if(modelBinding == null){
-			  return Response.status(404).entity("No model binding for  channel = "+channel+" namespace = "+namespace+" modelName = "+modelName+" found").build();
-		  }
-		  
-		  String dataFolder = GenericUtil.getNamespace(channel, namespace).getDataFolder();
-		  
-		  GrammarDiffRequestBody grammarDiffRequestBody = JsonConvertor.getObjectFromJson(requestBodyJson, GrammarDiffRequestBody.class);
-		  String topicToTextFolder = GenericUtil.getTopicToTextOutputFolder(modelBinding.getTopicToTextFolder(), modelVersion, grammarDiffRequestBody.getTopicPathWihtoutModelName(), null, -1);
-		  // we get the topicToTextFolder for the topic path. get all the dates and sequenceNumber associated with the data. That will form as the basis for comparison
-		  // why? because input data in those files contains the given topic
-		  List<DatasourceFile> dataSourceFiles = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(topicToTextFolder);
-		  String dataFolderContainingTopic  = null;
-		  String topicToTextFile = null;
-		  for(DatasourceFile df:dataSourceFiles) {
-			  String dateAndSequenceNumber = GenericUtil.getDateAndSequenceNumberFromTopicToTextOutputFolder(df.getName());
-			   dataFolderContainingTopic = dataFolder+"/"+dateAndSequenceNumber;
-			   topicToTextFile = df.getName();
-			   break;
-		  }
-		  if(dataFolderContainingTopic == null) {
-			  return Response.status(404).entity("No text data found which belongs to the topic "+grammarDiffRequestBody.getTopicPath()).build();
-		  }
-		  String[] lines = DatasourceClient.getDefaultDatasourceClient().readFileAsString(dataFolderContainingTopic).split("\n");
-		  List<String> comparisonSet = new ArrayList<>();
-		  int i=0;
-		  for(String line:lines){
-			  i++;
-			  
-			  JsonFileInputParseCommand command = new JsonFileInputParseCommand(channel, namespace);
-			  command.setRow(line).parse(null);
-			  String text = command.getJsonNlpInputBean().getText();
-			  comparisonSet.add(text);
-			  if(i==comparisonBaseSize) // limiting the size
-				  break;
-		  }
-		  // add lines from the topic to Text
-		   lines = DatasourceClient.getDefaultDatasourceClient().readFileAsString(topicToTextFile).split("\n");
-		   i=0;
-		  for(String line:lines) {
-			  i++;
-			  comparisonSet.add(line);
-			 
-			  if(i==comparisonBaseSize) // limiting the size
-				  break;
-		  }
-		  TopicGrammar grammar = TopicGrammarContainer.getTopicGrammar(modelName, modelVersion);
-		  TopicGrammarNode node = grammar.getNodeWithPath(grammarDiffRequestBody.getTopicPath());
-		  GrammarDelta delta = new GrammarDeltaProcessor().getDelta(node, grammarDiffRequestBody.getNewConstraints(), comparisonSet , true, 5);
-		  // get the topicToReviews
-		  String json = JsonConvertor.getJson(delta);
-		  return Response.status(200).entity(json).build(); 
+		  DiffResult diffResult = getDiff(channel, namespace, modelName, modelVersion, requestBodyJson, comparisonBaseSize);
+		  return Response.status(diffResult.responseCode).entity(diffResult.json == null?diffResult.errorMEssage:diffResult.json ).build(); 
 	  }
 	  
-	  private void addToCOmparisonBase(String[] lines,List<String> comparisonSet,String channel,String namespace,int  comparisonBaseSize){
+	  public static class DiffResult {
+		  String json;
+		  String errorMEssage;
+		  int responseCode;
+		public DiffResult(String json, String errorMEssage, int errorCode) {
+			super();
+			this.json = json;
+			this.errorMEssage = errorMEssage;
+			this.responseCode = errorCode;
+		}
 		  
+	  }
+	 /**
+	  * Returns a Json String representing the diff between two models
+	  * @param channel
+	  * @param namespace
+	  * @param modelName
+	  * @param modelVersion
+	  * @param requestBodyJson
+	  * @param comparisonSetSize
+	  * @return
+	 * @throws Exception 
+	 * @throws InvalidGrammarException 
+	  */
+	  public DiffResult getDiff(String channel, String namespace, String modelName, double modelVersion,String requestBodyJson,int comparisonSetSize) throws InvalidGrammarException, Exception {
+		  GrammarDiffRequestBody grammarDiffRequestBody = JsonConvertor.getObjectFromJson(requestBodyJson, GrammarDiffRequestBody.class);
+		  
+		  TopicGrammar grammar = TopicGrammarContainer.getTopicGrammar(modelName, modelVersion);
+		  TopicGrammarNode node = grammar.getNodeWithPath(grammarDiffRequestBody.getTopicPath());
+		  long start = System.currentTimeMillis();
+		  Set<String> comparisonSet = getComparisonSetFromCache(channel, namespace, modelName, modelVersion, comparisonSetSize, grammarDiffRequestBody);
+		  Set<String> comparisonSet_short = new HashSet<>();
+		  int count = 0;
+		  for(String s:comparisonSet) {
+			  count++;
+			  comparisonSet_short.add(s);
+			  if(count > comparisonSetSize)
+				  break;
+		  }
+		  GrammarDelta delta = new GrammarDeltaProcessor().getDelta(node, grammarDiffRequestBody.getNewConstraints(), comparisonSet_short , true, 5);
+		  System.out.println("time to compute delta " +(System.currentTimeMillis() - start));
+		  // get the topicToReviews
+		  String json = JsonConvertor.getJson(delta);
+		  return new DiffResult(json,null,200);
 	  }
 	  
 	/**
@@ -294,6 +292,85 @@ public class GrammarService  {
 		}
 	  }
 	  
+	  /**
+	   * 
+	   * @param channel
+	   * @param namespace
+	   * @param modelName
+	   * @param modelVersion
+	   * @param comparisonSetSize
+	   * @param grammarDiffRequestBody
+	   * @return
+	   * @throws Exception
+	   */
+	  public Set<String> getComparisonSetFromCache(String channel,String namespace,String modelName, double modelVersion,int comparisonSetSize,GrammarDiffRequestBody grammarDiffRequestBody) throws Exception {
+		   
+		  return TextCache.getInstance(channel, namespace).getTexts();
+	  }
+		
+	  /**
+	   * 
+	   * @param channel
+	   * @param namespace
+	   * @param modelName
+	   * @param modelVersion
+	   * @param comparisonSetSize
+	   * @param grammarDiffRequestBody
+	   * @return
+	   * @throws Exception
+	   */
+	  public List<String> getComparisonSet(String channel,String namespace,String modelName, double modelVersion,int comparisonSetSize,GrammarDiffRequestBody grammarDiffRequestBody) throws Exception {
+		  List<String> comparisonSet = new ArrayList<>();
+		  // get the comparison base
+		  ModelBinding modelBinding = GenericUtil.getModelBinding(channel, namespace, modelName);
+		  
+		  if(modelBinding == null){
+			  new DiffResult(null,"No model binding for  channel = "+channel+" namespace = "+namespace+" modelName = "+modelName+" found",404);
+		  }
+		  
+		  String dataFolder = GenericUtil.getNamespace(channel, namespace).getDataFolder();
+		  
+		 
+		  String topicToTextFolder = GenericUtil.getTopicToTextOutputFolder(modelBinding.getTopicToTextFolder(), modelVersion, grammarDiffRequestBody.getTopicPathWihtoutModelName(), null, -1);
+		  // we get the topicToTextFolder for the topic path. get all the dates and sequenceNumber associated with the data. That will form as the basis for comparison
+		  // why? because input data in those files contains the given topic
+		  List<DatasourceFile> dataSourceFiles = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(topicToTextFolder);
+		  String dataFolderContainingTopic  = null;
+		  String topicToTextFile = null;
+		  for(DatasourceFile df:dataSourceFiles) {
+			  String dateAndSequenceNumber = GenericUtil.getDateAndSequenceNumberFromTopicToTextOutputFolder(df.getName());
+			   dataFolderContainingTopic = dataFolder+"/"+dateAndSequenceNumber;
+			   topicToTextFile = df.getName();
+			   break;
+		  }
+		  if(dataFolderContainingTopic == null) {
+			  return comparisonSet;
+		  }
+		  String[] lines = DatasourceClient.getDefaultDatasourceClient().readFileAsString(dataFolderContainingTopic).split("\n");
+		 
+		  int i=0;
+		  for(String line:lines){
+			  i++;
+			  
+			  JsonFileInputParseCommand command = new JsonFileInputParseCommand(channel, namespace);
+			  command.setRow(line).parse(null);
+			  String text = command.getJsonNlpInputBean().getText();
+			  comparisonSet.add(text);
+			  if(i==comparisonSetSize) // limiting the size
+				  break;
+		  }
+		  // add lines from the topic to Text
+		   lines = DatasourceClient.getDefaultDatasourceClient().readFileAsString(topicToTextFile).split("\n");
+		   i=0;
+		  for(String line:lines) {
+			  i++;
+			  comparisonSet.add(line);
+			 
+			  if(i==comparisonSetSize) // limiting the size
+				  break;
+		  }
+		  return comparisonSet;
+	  }
 	  
 	   /**
 	    * Returns the current version number
@@ -322,7 +399,8 @@ public class GrammarService  {
 			  grammar.parse(json);
 			  boolean result =  !grammar.getGrammar().getTopicNodes().isEmpty() && grammar.getGrammar().getTopicNodes().size() > 0;
 			  // do a vanilla topic assignement
-			  new TopicAssigner(grammar.getGrammar()).doTopicAssignement(new CCCDataInputBean("Starbucks promotion is great"), true, 5);
+			  Map<String,Set<Rule>> matchedRulesForEachTopic = new HashMap<>();
+			  new TopicAssigner(grammar.getGrammar()).doTopicAssignement(new SimpleNlpInputBean("Starbucks promotion is great"), true, 5,false);
 			  // ensure that there are 
 		  } catch(Exception e){
 			  e.printStackTrace();
@@ -379,7 +457,11 @@ public class GrammarService  {
 		   }
 	  }
 	  
-	 
+	 public static void main(String[] args) throws InvalidGrammarException, Exception {
+		 String requestBody = "{\"topicPath\":\"cs all volume|in-store experience|in-store - customer service\",\"newConstraints\":[{\"notWords\":\"\",\"andWords1\":\"\",\"andWords2\":\"\",\"keywords\":\"milk\"}]}";
+		 DiffResult result = new GrammarService().getDiff("ccc", "default", "csAllVolume", 1.0, requestBody, 1000);
+		 System.out.println(result.json);
+	 }
 	  
 
 }

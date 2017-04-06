@@ -97,6 +97,9 @@ public class StatsService  {
 					 TopicDetectionProcess.topicCountCache.put(cacheKey, topicCount);
 				}
 			   
+				if(topicCount == null) {
+					return Response.status(404).entity("Topic count not found. Ensure that data is available in "+ cacheKey).build();
+				}
 				if(!aggregateOnly) // if only the aggrgate count over a date range is needed we do not need to put the individual date's data in the final result
 					 topicCountMap.put(date.toString(), topicCount);
 				

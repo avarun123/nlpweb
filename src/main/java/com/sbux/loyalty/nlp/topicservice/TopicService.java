@@ -11,9 +11,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.annotation.PreDestroy;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -32,6 +35,7 @@ import com.sbux.loyalty.nlp.Exception.DataProcesingException;
 import com.sbux.loyalty.nlp.aws.LambdaTopicDetectionProcess;
 import com.sbux.loyalty.nlp.commands.JsonTopicAssignementCommand;
 import com.sbux.loyalty.nlp.commands.JsonFileInputParseCommand;
+import com.sbux.loyalty.nlp.config.Channel;
 import com.sbux.loyalty.nlp.config.ConfigBean;
 import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.config.NameSpace;
@@ -51,17 +55,29 @@ import com.sbux.loyalty.nlp.grammar.TopicGrammarContainer;
 import com.sbux.loyalty.nlp.parsers.InputJsonParser;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
+import com.sbux.loyalty.nlp.util.TextCache.TextCacheReloadTask;
 
 /**
  * This class does rule based topic detection
  * @author aveettil
  *
  */
-@Path("/detecttopics")
+@Path("/topics")
 public class TopicService  {
 	private static final Logger log = Logger.getLogger(TopicService.class);
 	public static Map<String,Boolean> taskStatus= new HashMap<>();
 	public static Map<String,Integer> numParallelTasks= new HashMap<>();
+	Timer textCacheTimer = new Timer();
+	public TopicService() throws Exception {
+		// loads the texts in cache
+		scheduleTextCacheLoad();
+	}
+	
+	@PreDestroy
+    public void preDestroy() {
+		log.info("cancelling timer task before shutting down");
+        textCacheTimer.cancel();
+    }
 	
 	@GET
 	  @Produces("application/text")
@@ -171,20 +187,28 @@ public class TopicService  {
 		}
 	  }
 	  
-	  public static void main(String[] args) throws DataProcesingException {
-		  DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-			LocalDate start = LocalDate.parse("2016-02-01"),
-			          end   = LocalDate.parse("2016-03-31");
-			Map<String,Map<String,Integer>> topicCountMap = new HashMap<>();
-			Map<String,Integer> topicCountAggregate = new HashMap<>();
-			topicCountMap.put("aggregate",topicCountAggregate);
-			for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
-				 LambdaTopicDetectionProcess process =new LambdaTopicDetectionProcess(UUID.randomUUID().toString());
-				//TopicDetectionProcess process =new  TopicDetectionProcess( );
-			      	//process.doTopicDetection("ccc", "default","csVolumeMaster",1.0,date.toString());
-				 process.doTopicDetection("ccc", "default","csAllVolume",1.0,date.toString());
-				 //process.doTopicDetection("appreviews", "appAnnie","csDigitalContacts",1.0,date.toString());
+	  public void scheduleTextCacheLoad() throws Exception {
+		  List<Channel> channels = ConfigBean.getInstance().getData().getChannels();
+			for (Channel chanel:channels) {
+				List<NameSpace> nameSpaces = chanel.getNamespaces();
+				for(NameSpace ns:nameSpaces) {
+					if(ns.getEnableCache().equalsIgnoreCase("true")) {
+						textCacheTimer.schedule(new TextCacheReloadTask(chanel.getName(), ns.getName()), 1000);
+						log.info("Scheduled TextCacheReloadTask for "+chanel.getName()+"/"+ns.getName());
+					}
+				}
 			}
-		 
+	  }
+	  
+	  
+	  public static void main(String[] args)   {
+		   
+		     try {
+				new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "2016-08-02", "2016-08-31");
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		    // new TopicService().doBulkTopicDetection("appreviews", "appAnnie", "2016-08-01", "2016-08-01");	 
 	  }
 }

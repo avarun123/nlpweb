@@ -51,12 +51,12 @@ import com.sbux.loyalty.nlp.util.JsonConvertor;
  * @author aveettil
  *
  */
-@Path("/coordinate")
+@Path("/service")
 public class CoordinationService  {
 	private static final Logger log = Logger.getLogger(CoordinationService.class);
  static Map<String,Integer> taskProgress = new HashMap<>();
 	
-	@GET
+	  @GET
 	  @Produces("application/text")
 	  public Response about() throws JSONException {
 
@@ -67,9 +67,20 @@ public class CoordinationService  {
 		return Response.status(200).entity(result).build();
 	  }
 	
+	  @Path("config/refresh")
+	  @GET
+	  public Response refreshConfig(@Context UriInfo ui)  {
+		  try {
+			  ConfigBean.instance = null;
+			  ConfigBean.getInstance();
+			  return Response.status(200).entity("Successfully refreshed configuration from cache").build();
+		  } catch(Exception e) {
+			  return Response.status(500).entity("Error occured whilre refreshing cache for configuration : "+e.getMessage()).build(); 
+		  }
+	  }
 	 
-	  @Path("{taskId}/{sequenceId}")
-	  @POST
+	  @Path("progress/{taskId}/{sequenceId}")
+	  @GET
 	  public Response updateTaskProgress(@PathParam("taskId") String taskId,@PathParam("sequenceId") int sequenceId,@Context UriInfo ui) throws Exception {
 			 if(TopicService.taskStatus.get(taskId) == null)  {
 				 return Response.status(401).entity("Unknown task = "+taskId).build();
