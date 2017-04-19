@@ -38,7 +38,7 @@ import com.sbux.loyalty.nlp.util.JsonConvertor;
  * @author aveettil
  *
  */
-@Path("/getstats")
+@Path("/stats")
 public class StatsService  {
 	private static final Logger log = Logger.getLogger(StatsService.class);
 	

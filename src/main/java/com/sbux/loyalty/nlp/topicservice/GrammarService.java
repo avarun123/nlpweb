@@ -1,9 +1,6 @@
 package com.sbux.loyalty.nlp.topicservice;
 
 import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,14 +23,10 @@ import javax.ws.rs.core.UriInfo;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
-import org.elasticsearch.common.mvel2.optimizers.impl.refl.nodes.ArrayLength;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.amazonaws.services.kinesis.model.InvalidArgumentException;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import com.sbux.loyalty.nlp.Exception.InvalidGrammarException;
 import com.sbux.loyalty.nlp.commands.JsonFileInputParseCommand;
@@ -42,19 +35,14 @@ import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.config.RuleBasedModel;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
-import com.sbux.loyalty.nlp.databean.CCCDataInputBean;
 import com.sbux.loyalty.nlp.databean.GrammarDiffRequestBody;
-import com.sbux.loyalty.nlp.databean.SimpleNlpInputBean;
 import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor;
-import com.sbux.loyalty.nlp.grammar.JsonTopicGrammar;
+import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor.GrammarDelta;
 import com.sbux.loyalty.nlp.grammar.ModelValidator;
 import com.sbux.loyalty.nlp.grammar.ModelValidator.ModelValidationResult;
-import com.sbux.loyalty.nlp.grammar.Rule;
-import com.sbux.loyalty.nlp.grammar.TopicAssigner;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar;
-import com.sbux.loyalty.nlp.grammar.TopicGrammarContainer;
-import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor.GrammarDelta;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammarNode;
+import com.sbux.loyalty.nlp.grammar.TopicGrammarContainer;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
 import com.sbux.loyalty.nlp.util.TextCache;

@@ -1,24 +1,12 @@
 package com.sbux.loyalty.nlp.topicservice;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import javax.annotation.PreDestroy;
 import javax.ws.rs.GET;
-import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -31,28 +19,14 @@ import org.elasticsearch.common.UUID;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.sbux.loyalty.nlp.Exception.DataProcesingException;
 import com.sbux.loyalty.nlp.aws.LambdaTopicDetectionProcess;
-import com.sbux.loyalty.nlp.commands.JsonTopicAssignementCommand;
-import com.sbux.loyalty.nlp.commands.JsonFileInputParseCommand;
 import com.sbux.loyalty.nlp.config.Channel;
 import com.sbux.loyalty.nlp.config.ConfigBean;
-import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.config.NameSpace;
 import com.sbux.loyalty.nlp.core.TopicDetectionProcess;
-import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
-import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
-import com.sbux.loyalty.nlp.databean.GrammarDiffRequestBody;
-import com.sbux.loyalty.nlp.databean.NlpBean;
-import com.sbux.loyalty.nlp.databean.TopicAssignementOutput;
-import com.sbux.loyalty.nlp.databean.TopicAssignmentOutputBean;
-import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor;
-import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor.GrammarDelta;
-import com.sbux.loyalty.nlp.grammar.TopicGrammar;
-import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammarNode;
-import com.sbux.loyalty.nlp.grammar.TopicGrammarContainer;
-
-import com.sbux.loyalty.nlp.parsers.InputJsonParser;
+import com.sbux.loyalty.nlp.jobstatus.JobNotFoundException;
+import com.sbux.loyalty.nlp.jobstatus.JobStatus;
+import com.sbux.loyalty.nlp.jobstatus.JobStatusStore;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
 import com.sbux.loyalty.nlp.util.TextCache.TextCacheReloadTask;
@@ -65,12 +39,14 @@ import com.sbux.loyalty.nlp.util.TextCache.TextCacheReloadTask;
 @Path("/topics")
 public class TopicService  {
 	private static final Logger log = Logger.getLogger(TopicService.class);
-	public static Map<String,Boolean> taskStatus= new HashMap<>();
-	public static Map<String,Integer> numParallelTasks= new HashMap<>();
+	//public static Map<String,Boolean> taskStatus= new HashMap<>();
+	//public static Map<String,Integer> numParallelTasks= new HashMap<>();
 	Timer textCacheTimer = new Timer();
+	 
 	public TopicService() throws Exception {
 		// loads the texts in cache
-		scheduleTextCacheLoad();
+		//scheduleTextCacheLoad();
+		 
 	}
 	
 	@PreDestroy
@@ -130,8 +106,8 @@ public class TopicService  {
 
 			// generate a task id
 			 
-			String taskId = UUID.randomUUID().toString().replaceAll("-", "");
-			taskStatus.put(taskId, false);
+			String jobId = UUID.randomUUID().toString().replaceAll("-", "");
+			//taskStatus.put(taskId, false);
 			
 			executorService.execute(new Runnable() {
 			    public void run() {
@@ -143,13 +119,13 @@ public class TopicService  {
 			        	 */
 			        	
 			        	/****************************AWS Lambda based topic detection*******************************************/
-			        	LambdaTopicDetectionProcess process =new LambdaTopicDetectionProcess(taskId);
-			        	process.doTopicDetection(channel, namespace,modelName,modelVersion,date);
-			        	
-						numParallelTasks.put(taskId,process.getNumParallelTasks());
+			        	LambdaTopicDetectionProcess process =new LambdaTopicDetectionProcess(channel, namespace,modelName,modelVersion,date,jobId);
+			        	process.doTopicDetection();
+			        	JobStatusStore.getInstance().createJobStatus(new JobStatus(jobId, process.getNumParallelTasks(), 0, "topic detection for channel = "+channel+" namespace = "+namespace+ " date = "+date+" modelName = "+modelName+" modelVersion = "+modelVersion));
+						//numParallelTasks.put(taskId,process.getNumParallelTasks());
 						/****************************END OF AWS Lambda based topic detection ************************************/
 						
-					} catch (DataProcesingException e) {
+					} catch ( Exception e) {
 					
 						e.printStackTrace();
 						log.error(e);
@@ -159,7 +135,7 @@ public class TopicService  {
 
 			executorService.shutdown(); // shut down will happen only after the job is completed, even though it is been called now.
 			
-			return Response.status(200).entity("Topic detection job submitted. job id = "+taskId).build();
+			return Response.status(200).entity(JsonConvertor.getJson(new Job(jobId,"topic detection for channel = "+channel+" namespace = "+namespace+ " date = "+date+" modelName = "+modelName+" modelVersion = "+modelVersion))).build();
 		} catch(Exception e){
 			log.error(e);
 			throw e;
@@ -167,6 +143,16 @@ public class TopicService  {
 	  }
 	  
 	  
+	  public static class Job {
+		  String jobid;
+		  String desc;
+		public Job(String jobid, String desc) {
+			super();
+			this.jobid = jobid;
+			this.desc = desc;
+		}
+		  
+	  }
 		  
 	  /**
 	   * Returns the status of a job completions. (True or false).
@@ -180,8 +166,15 @@ public class TopicService  {
 	  @Produces("application/text")
 	  public Response getJobStatus(@PathParam("jobId") String jobId,@Context UriInfo ui) throws Exception {
 		try {
-			 return Response.status(200).entity(taskStatus.get(jobId)==null?"job not found":taskStatus.get(jobId).toString()).build();
-		} catch(Exception e){
+			// return Response.status(200).entity(taskStatus.get(jobId)==null?"job not found":taskStatus.get(jobId).toString()).build();
+			JobStatus status = JobStatusStore.getInstance().getJobStatus(jobId);
+			status.setPercentCompleted();
+			return Response.status(200).entity(JsonConvertor.getJson(status)).build();
+		} 
+		catch(JobNotFoundException jnf) {
+			return Response.status(404).entity("job not found : jobId = "+jobId).build();
+		}
+		catch(Exception e){
 			log.error(e);
 			throw e;
 		}
@@ -204,7 +197,15 @@ public class TopicService  {
 	  public static void main(String[] args)   {
 		   
 		     try {
-				new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "2016-08-02", "2016-08-31");
+		    	//String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "2016-08-01", "2016-08-31",null);
+		    	//String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "rcCxDashboards", 1.0, "2016-08-01", "2016-08-31",null);
+		    	 String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "csLoyaltyContacts", 1.0, "2016-08-01", "2016-08-31",null);
+		    	 while(true) {
+		    		 JobStatus status = JobStatusStore.getInstance().getJobStatus(jobid);
+		 			 status.setPercentCompleted();
+		 			 System.out.println(JsonConvertor.getJson(status));
+		 			 Thread.sleep(10000);
+		    	 }
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
