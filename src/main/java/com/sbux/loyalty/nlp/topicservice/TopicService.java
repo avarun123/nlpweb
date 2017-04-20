@@ -11,9 +11,11 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.elasticsearch.common.UUID;
 import org.json.JSONException;
@@ -22,8 +24,12 @@ import org.json.JSONObject;
 import com.sbux.loyalty.nlp.aws.LambdaTopicDetectionProcess;
 import com.sbux.loyalty.nlp.config.Channel;
 import com.sbux.loyalty.nlp.config.ConfigBean;
+import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.config.NameSpace;
+import com.sbux.loyalty.nlp.config.RuleBasedModel;
 import com.sbux.loyalty.nlp.core.TopicDetectionProcess;
+import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
+import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
 import com.sbux.loyalty.nlp.jobstatus.JobNotFoundException;
 import com.sbux.loyalty.nlp.jobstatus.JobStatus;
 import com.sbux.loyalty.nlp.jobstatus.JobStatusStore;
@@ -42,7 +48,7 @@ public class TopicService  {
 	//public static Map<String,Boolean> taskStatus= new HashMap<>();
 	//public static Map<String,Integer> numParallelTasks= new HashMap<>();
 	Timer textCacheTimer = new Timer();
-	 
+	 public final int LIMIT_TOPICTOTEXT = 100;
 	public TopicService() throws Exception {
 		// loads the texts in cache
 		//scheduleTextCacheLoad();
@@ -83,6 +89,59 @@ public class TopicService  {
 			return doTopicDetection(channel, namespace, date, modelName, GenericUtil.getRuleBaseModel(modelName).getCurrentVersion(), ui);
 	  }
 	  
+	  /**
+	   * Returns texts belonging to a particular topic under a model and version for a channel and namespace
+	   * @param channel
+	   * @param namespace
+	   * @param modelName
+	   * @param modelVersion
+	   * @param topicPath
+	   * @param ui
+	   * @return
+	   * @throws Exception
+	   */
+	  @Path("texts/{channel}/{namespace}/{modelName}/{modelVersion}/{topicPath}")
+	  @GET
+	  @Produces("application/text")
+	  public Response getTopicTexts(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("modelVersion") double modelVersion,@PathParam("topicPath") String topicPath,@Context UriInfo ui) throws Exception {
+		try {
+			int limitTopicToText = LIMIT_TOPICTOTEXT;
+			MultivaluedMap<String, String> queryParams = ui.getQueryParameters();
+			String limit = queryParams.getFirst("limit");
+			if(StringUtils.isNotBlank(limit))
+				limitTopicToText = Integer.parseInt(limit);
+			List<String> listOfTexts = GenericUtil.getTextsForTopic(channel, namespace, modelName, modelVersion, topicPath, limitTopicToText);
+			return Response.status(200).entity (StringUtils.join(listOfTexts,"\n")).build();
+			
+		} catch(Exception e){
+			log.error(e);
+			throw e;
+		}
+	  }
+	  
+	  /**
+	   * 
+	   * @param channel
+	   * @param namespace
+	   * @param modelName
+	   * @param topicPath
+	   * @param ui
+	   * @return
+	   * @throws Exception
+	   */
+	  @Path("texts/{channel}/{namespace}/{modelName}/{topicPath}")
+	  @GET
+	  @Produces("application/text")
+	  public Response getTopicTexts(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("topicPath") String topicPath,@Context UriInfo ui) throws Exception {
+		try {
+			 
+			RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
+			return getTopicTexts(channel, namespace, modelName, model.getCurrentVersion(), topicPath,ui);
+		} catch(Exception e){
+			log.error(e);
+			throw e;
+		}
+	  }
 	 
 	
 	 /**
@@ -198,8 +257,8 @@ public class TopicService  {
 		   
 		     try {
 		    	//String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "2016-08-01", "2016-08-31",null);
-		    	//String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "rcCxDashboards", 1.0, "2016-08-01", "2016-08-31",null);
-		    	 String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "csLoyaltyContacts", 1.0, "2016-08-01", "2016-08-31",null);
+		    	String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "csAllVolume", 1.0, "2016-08-01", "2016-08-31",null);
+		    	 //String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "csLoyaltyContacts", 1.0, "2016-08-01", "2016-08-31",null);
 		    	 while(true) {
 		    		 JobStatus status = JobStatusStore.getInstance().getJobStatus(jobid);
 		 			 status.setPercentCompleted();
