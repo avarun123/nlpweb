@@ -257,7 +257,7 @@ public class TopicService  {
 		   
 		     try {
 		    	//String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "2016-08-01", "2016-08-31",null);
-		    	String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "csAllVolume", 1.0, "2016-08-01", "2016-08-31",null);
+		    	String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "csDigitalContacts", 1.0, "2016-08-01", "2016-08-31",null);
 		    	 //String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "csLoyaltyContacts", 1.0, "2016-08-01", "2016-08-31",null);
 		    	 while(true) {
 		    		 JobStatus status = JobStatusStore.getInstance().getJobStatus(jobid);

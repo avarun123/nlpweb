@@ -345,7 +345,7 @@ public class GrammarService  {
 		  String dataFolder = GenericUtil.getNamespace(channel, namespace).getDataFolder();
 		  
 		 
-		  String topicToTextFolder = GenericUtil.getTopicToTextOutputFolder(modelBinding.getTopicToTextFolder(), modelVersion, grammarDiffRequestBody.getTopicPathWihtoutModelName(), null, -1);
+		  String topicToTextFolder = GenericUtil.getTopicToTextOutputFolder(modelBinding.getTopicToTextFolder(), modelVersion, grammarDiffRequestBody.getTopicPathWihtoutModelName(), null, -1,-1,-1);
 		  // we get the topicToTextFolder for the topic path. get all the dates and sequenceNumber associated with the data. That will form as the basis for comparison
 		  // why? because input data in those files contains the given topic
 		  List<DatasourceFile> dataSourceFiles = DatasourceClient.getDefaultDatasourceClient().getListOfFilesInFolder(topicToTextFolder);
