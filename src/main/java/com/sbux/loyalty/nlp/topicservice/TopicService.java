@@ -21,6 +21,7 @@ import org.elasticsearch.common.UUID;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.google.gson.JsonObject;
 import com.sbux.loyalty.nlp.aws.LambdaTopicDetectionProcess;
 import com.sbux.loyalty.nlp.config.Channel;
 import com.sbux.loyalty.nlp.config.ConfigBean;
@@ -33,6 +34,7 @@ import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
 import com.sbux.loyalty.nlp.jobstatus.JobNotFoundException;
 import com.sbux.loyalty.nlp.jobstatus.JobStatus;
 import com.sbux.loyalty.nlp.jobstatus.JobStatusStore;
+import com.sbux.loyalty.nlp.jobstatus.JobStatusStore2;
 import com.sbux.loyalty.nlp.util.GenericUtil;
 import com.sbux.loyalty.nlp.util.JsonConvertor;
 import com.sbux.loyalty.nlp.util.TextCache.TextCacheReloadTask;
@@ -88,6 +90,26 @@ public class TopicService  {
 	  public Response doTopicDetection(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("date") String date,@PathParam("modelName") String modelName,@Context UriInfo ui) throws Exception {
 			return doTopicDetection(channel, namespace, date, modelName, GenericUtil.getRuleBaseModel(modelName).getCurrentVersion(), ui);
 	  }
+	  
+	  
+	  /**
+		 * Runs topic detection for a model and its current version
+		 * @param channel
+		 * @param namespace
+		 * @param date
+		 * @param modelName
+		 * @param ui
+		 * @return
+		 * @throws Exception
+		 */
+		  @Path("/bulk/{channel}/{namespace}/{startDate}/{endDate}/{modelName}")
+		  @GET
+		  @Produces("application/text")
+		  public Response doTopicDetection(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("startDate") String startDate,@PathParam("endDate") String endDate,@PathParam("modelName") String modelName,@Context UriInfo ui) throws Exception {
+			  String jobid = new TopicDetectionProcess().doBulkTopicDetection(channel, namespace, modelName, GenericUtil.getRuleBaseModel(modelName).getCurrentVersion(), startDate, endDate,null);
+			  return Response.status(200).entity (jobid).build();
+		  }
+		  
 	  
 	  /**
 	   * Returns texts belonging to a particular topic under a model and version for a channel and namespace
@@ -254,13 +276,13 @@ public class TopicService  {
 	  
 	  
 	  public static void main(String[] args)   {
-		   
+	 ConfigBean.propsFile = "sbux-datascience-nlp/config/config.properties";
 		     try {
-		    	//String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "2016-08-01", "2016-08-31",null);
-		    	String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "csDigitalContacts", 1.0, "2016-08-01", "2016-08-31",null);
+		    	//String jobid = new TopicDetectionProcess().doBulkTopicDetection("fsc", "ccc", "2016-08-01", "2016-08-31",null);
+		    	String jobid = new TopicDetectionProcess().doBulkTopicDetection("fsc", "ccc", "xLIBStarbucksCardMSRLibrary", 1.0, "2016-08-01", "2016-08-31",null);
 		    	 //String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "csLoyaltyContacts", 1.0, "2016-08-01", "2016-08-31",null);
 		    	 while(true) {
-		    		 JobStatus status = JobStatusStore.getInstance().getJobStatus(jobid);
+		    		 JobStatus status = JobStatusStore2.getInstance().getJobStatus(jobid);
 		 			 status.setPercentCompleted();
 		 			 System.out.println(JsonConvertor.getJson(status));
 		 			 Thread.sleep(10000);

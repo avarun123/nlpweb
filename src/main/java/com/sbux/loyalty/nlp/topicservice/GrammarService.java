@@ -38,9 +38,15 @@ import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
 import com.sbux.loyalty.nlp.databean.GrammarDiffRequestBody;
 import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor;
 import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor.GrammarDelta;
+import com.sbux.loyalty.nlp.grammar.InvalidPreviewRequestException;
 import com.sbux.loyalty.nlp.grammar.ModelValidator;
+import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher;
+import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher.ConstraintMatchMessage;
+import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher.Filter;
+import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher.MatchResponse;
 import com.sbux.loyalty.nlp.grammar.ModelValidator.ModelValidationResult;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar;
+import com.sbux.loyalty.nlp.grammar.TopicGrammar.Constraint;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammarNode;
 import com.sbux.loyalty.nlp.grammar.TopicGrammarContainer;
 import com.sbux.loyalty.nlp.util.GenericUtil;
@@ -261,6 +267,66 @@ public class GrammarService  {
 		  public Response deleteModelFromcache(@PathParam("modelName") String modelName, @PathParam("version") double version,@Context UriInfo ui) throws Exception {
 			TopicGrammarContainer.deleteFromCache(modelName, version);
 			return Response.status(200).entity("Successfully deleted model "+modelName+" version "+version+" from cache").build();
+		  }
+		  
+		  
+		 /**
+		  * Returns a preview of the texts matching the constraints
+		  * @param channel
+		  * @param namespace
+		  * @param ui
+		  * @param requestBody
+		  * @return
+		  */
+		  @Path("preview/{channel}/{namespace}")
+		  @POST
+		  @Produces("application/text")
+		  public Response getPreview(@PathParam("channel") String channel, @PathParam("namespace") String namespace,@Context UriInfo ui,String requestBody)  {
+			  try {
+				  ConstraintMatchMessage msg = JsonConvertor.getObjectFromJson(requestBody, ConstraintMatchMessage.class);
+				  List<MatchResponse> response = new OnlineConstraintMatcher().getMatchingTexts(msg);
+				  return Response.status(200).entity(JsonConvertor.getJson(response)).build();
+			  } catch(InvalidPreviewRequestException e){
+				  log.info(e);
+				  return Response.status(400).entity(e.getMessage()).build();
+			  } catch(Exception e1){
+				  log.error(e1);
+				  return Response.status(500).entity(e1.getMessage()).build();
+			  }
+		  }
+		  
+		   /**
+		    * warms up the preview request so that lambda is ready and set to go 
+		    * @param ui
+		    * @return
+		    */
+		  @Path("preview/warmup")
+		  @GET
+		  @Produces("application/text")
+		  public Response warmUpPreview(@Context UriInfo ui)  {
+			  try {
+				  	List<Constraint> l = new ArrayList<>();
+					Constraint c = new Constraint();
+					c.setName("c1");
+					c.setKeywordsRule("accepted, accepts, accept, ((allow, allowed, allows, able, unable, \"could not\", \"can not\", cannot, \"would not let\", \"did not let\") AND (use, used, using, uses)), acceptance");
+					c.setAndWords2Rule("store, location, license?, target, \"barnes and noble\", \"barnes & noble\", kroger, hilton, stores, locations, country, usa, america, \"us cards\", \"card was not accepted\", countries, england, uk, britain, travel, travelling, albertsons, \"barnes n nobles\", barnes, \"the starbucks\", korea, pos, germany, \"puerto rico\", abroad, foreign, safeway, caribbean, franchise, franchises, \"they would not accept\", hospital, \"saudi arabia\", \"b&n\", disney, university, campus, airport, school, kiosk, kiosks, paris, bahamas, motorway, \"new york city\", canada, albertson, nobles, , OWNERSHIP_TYPE:ls, OWNERSHIP_TYPE:fr, OWNERSHIP_TYPE:bn, OWNERSHIP_TYPE:fs");
+					l.add(c);
+					Filter filter = new Filter();
+					filter.setChannel("fsc");
+					filter.setNamespace("ccc");
+					filter.setModelName("xLIBStarbucksCardMSRLibrary");
+					filter.setStartDt("2016-08-01");
+					filter.setEndDt("2016-08-01");
+					filter.setModelVersion(1.0);
+					new OnlineConstraintMatcher().getMatchingTexts(new ConstraintMatchMessage(l, filter));
+				  return Response.status(200).entity("SUCCESS").build();
+			  } catch(InvalidPreviewRequestException e){
+				  log.info(e);
+				  return Response.status(400).entity(e.getMessage()).build();
+			  } catch(Exception e1){
+				  log.error(e1);
+				  return Response.status(500).entity(e1.getMessage()).build();
+			  }
 		  }
 		  
 	  
