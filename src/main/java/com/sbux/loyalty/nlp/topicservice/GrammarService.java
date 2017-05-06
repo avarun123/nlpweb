@@ -285,7 +285,8 @@ public class GrammarService  {
 			  try {
 				  ConstraintMatchMessage msg = JsonConvertor.getObjectFromJson(requestBody, ConstraintMatchMessage.class);
 				  List<MatchResponse> response = new OnlineConstraintMatcher().getMatchingTexts(msg);
-				  return Response.status(200).entity(JsonConvertor.getJson(response)).build();
+				  String json = JsonConvertor.getJson(response);
+				  return Response.status(200).entity(json).build();
 			  } catch(InvalidPreviewRequestException e){
 				  log.info(e);
 				  return Response.status(400).entity(e.getMessage()).build();
@@ -317,8 +318,12 @@ public class GrammarService  {
 					filter.setModelName("xLIBStarbucksCardMSRLibrary");
 					filter.setStartDt("2016-08-01");
 					filter.setEndDt("2016-08-01");
+					 
 					filter.setModelVersion(1.0);
-					new OnlineConstraintMatcher().getMatchingTexts(new ConstraintMatchMessage(l, filter));
+					ConstraintMatchMessage msg = new ConstraintMatchMessage(l, filter);
+					msg.setMinResponse(5);
+				
+					new OnlineConstraintMatcher().getMatchingTexts(msg);
 				  return Response.status(200).entity("SUCCESS").build();
 			  } catch(InvalidPreviewRequestException e){
 				  log.info(e);
