@@ -420,6 +420,38 @@ public class GrammarService  {
 	  }
 	  
 	  
+	  /**
+	   * Returns a given node specified by path argument
+	   * @param modelName
+	   * @param path
+	   * @param ui
+	   * @return
+	   * @throws Exception
+	   */
+	  @Path("{modelName}/path")
+	  @GET
+	  @Consumes (MediaType.APPLICATION_JSON)
+	  public Response getModelPath(@PathParam("modelName") String modelName,@QueryParam("path") String path, @Context UriInfo ui) throws Exception {
+		try {
+			// validate model
+			RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
+			if(model == null) {
+				return Response.status(404).entity("Model "+modelName+" not found").build();
+			}
+			TopicGrammar topicGrammar = TopicGrammarContainer.getTopicGrammar(modelName, model.getCurrentVersion());
+			TopicGrammarNode node = topicGrammar.getNodeWithPath(path);
+			if(node == null) {
+				return Response.status(404).entity("path "+path+" not found in model "+modelName).build();
+			}
+			else {
+				return Response.status(201).entity(JsonConvertor.getJson(node)).build();
+			}
+			 
+		} catch(Exception e){
+			log.error(e);
+			throw e;
+		}
+	  }
 	  
 	  /**
 	   * 
@@ -573,6 +605,7 @@ public class GrammarService  {
 			// update the current version to new version
 			model.setCurrentVersion(newVersion);
 			ConfigBean.storeConfig(ConfigBean.getInstance());
+			GenericUtil.reset(); // reset the configuration
 			return newVersion;
 	  }
 	 public static void main(String[] args) throws InvalidGrammarException, Exception {
