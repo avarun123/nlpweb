@@ -384,7 +384,7 @@ public class GrammarService  {
 	   * @return
 	   * @throws Exception
 	   */
-	  @Path("{modelName}/path")
+	  @Path("{modelName}/node")
 	  @PUT
 	  @Consumes (MediaType.APPLICATION_JSON)
 	  @Produces("application/text")
@@ -393,9 +393,7 @@ public class GrammarService  {
 			// validate model
 			RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
 			if(model == null) {
-				// TODO - this needs to implement creation of a new model if it is not already existing.
-				// JIRA - https://starbucks-analytics.atlassian.net/browse/DS-1056
-				throw new InvalidArgumentException("Model is not existing. Feature to create a model through API is not yet implemented");
+					return Response.status(404).entity("model "+modelName+" does not exist").build();
 			}
 			TopicGrammar topicGrammar = TopicGrammarContainer.getTopicGrammar(modelName, model.getCurrentVersion());
 			TopicGrammarNode node = topicGrammar.getNodeWithPath(path);
@@ -413,7 +411,7 @@ public class GrammarService  {
 				// TODO: store the diff
 				return Response.status(201).entity(newVersion+"").build();
 			} else {
-				return Response.status(400).entity("Invalid model : Excption is " +JsonConvertor.getJson(modelValidationResult.getErrorMessages())).build();
+				return Response.status(400).entity("Invalid model : Exception is " +JsonConvertor.getJson(modelValidationResult.getErrorMessages())).build();
 			}
 		} catch(Exception e){
 			log.error(e);
@@ -430,7 +428,7 @@ public class GrammarService  {
 	   * @return
 	   * @throws Exception
 	   */
-	  @Path("{modelName}/path")
+	  @Path("{modelName}/node")
 	  @GET
 	  @Consumes (MediaType.APPLICATION_JSON)
 	  @Produces("application/text")
