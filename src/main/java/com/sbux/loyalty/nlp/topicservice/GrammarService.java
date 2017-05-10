@@ -71,7 +71,7 @@ public class GrammarService  {
 
 		JSONObject jsonObject = new JSONObject();
 		 
-		jsonObject.put("Description", " provides topic count statistics "); 
+		jsonObject.put("Description", " provides API services related models"); 
 		String result = jsonObject.toString();
 		return Response.status(200).entity(result).build();
 	  }
@@ -358,15 +358,7 @@ public class GrammarService  {
 					// JIRA - https://starbucks-analytics.atlassian.net/browse/DS-1056
 					throw new InvalidArgumentException("Model is not existing. Feature to create a model through API is not yet implemented");
 				}
-				double newVersion = model.getCurrentVersion()+1.0;
-				String newVersionFilePath = model.getGrammarFileLocation()+"/"+newVersion+"/"+model.getFileName();
-				
-				// create new version file
-				DatasourceClient.getDefaultDatasourceClient().createFile(newVersionFilePath, json);
-				
-				// update the current version to new version
-				model.setCurrentVersion(newVersion);
-				ConfigBean.storeConfig(ConfigBean.getInstance());
+				double newVersion = updateConfigWithNewVersion(model, json);
 				// TODO: store the diff
 				return Response.status(201).entity(newVersion+"").build();
 			} else {
@@ -377,6 +369,51 @@ public class GrammarService  {
 			throw e;
 		}
 	  }
+	  
+	  
+	  
+	  /**
+	   * Update the model given the path and the constraints in the path
+	   * @param modelName
+	   * @param path
+	   * @param ui
+	   * @param json
+	   * @return
+	   * @throws Exception
+	   */
+	  @Path("{modelName}/path/{path}")
+	  @PUT
+	  @Consumes (MediaType.APPLICATION_JSON)
+	  public Response updateModel(@PathParam("modelName") String modelName,@PathParam("path") String path, @Context UriInfo ui,String json) throws Exception {
+		try {
+			// validate model
+			RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
+			if(model == null) {
+				// TODO - this needs to implement creation of a new model if it is not already existing.
+				// JIRA - https://starbucks-analytics.atlassian.net/browse/DS-1056
+				throw new InvalidArgumentException("Model is not existing. Feature to create a model through API is not yet implemented");
+			}
+			TopicGrammar topicGrammar = TopicGrammarContainer.getTopicGrammar(modelName, model.getCurrentVersion());
+			TopicGrammarNode node = topicGrammar.getNodeWithPath(path);
+			List<Constraint> constraints = JsonConvertor.getObjectFromJson(json, List.class);
+			node.setConstrainsts(constraints);
+			ModelValidator.ModelValidationResult modelValidationResult= new ModelValidator().validateModel(topicGrammar);
+			if(modelValidationResult.isSuccess()) {
+				// update the model with a new version
+			
+				double newVersion = updateConfigWithNewVersion(model, JsonConvertor.getJson(topicGrammar.getTopicNodes()));
+				// TODO: store the diff
+				return Response.status(201).entity(newVersion+"").build();
+			} else {
+				return Response.status(400).entity("Invalid model : Excption is " +JsonConvertor.getJson(modelValidationResult.getErrorMessages())).build();
+			}
+		} catch(Exception e){
+			log.error(e);
+			throw e;
+		}
+	  }
+	  
+	  
 	  
 	  /**
 	   * 
@@ -512,6 +549,26 @@ public class GrammarService  {
 		   }
 	  }
 	  
+	  /**
+	   * 
+	   * @param model
+	   * @param json
+	   * @return
+	   * @throws IOException
+	   * @throws Exception
+	   */
+	  private synchronized double updateConfigWithNewVersion(RuleBasedModel model,String json) throws IOException, Exception {
+		  	double newVersion = model.getCurrentVersion()+1.0;
+			String newVersionFilePath = model.getGrammarFileLocation()+"/"+newVersion+"/"+model.getFileName().replace(".csv",".json");
+			
+			// create new version file
+			DatasourceClient.getDefaultDatasourceClient().createFile(newVersionFilePath, json);
+			
+			// update the current version to new version
+			model.setCurrentVersion(newVersion);
+			ConfigBean.storeConfig(ConfigBean.getInstance());
+			return newVersion;
+	  }
 	 public static void main(String[] args) throws InvalidGrammarException, Exception {
 		 String requestBody = "{\"topicPath\":\"cs all volume|in-store experience|in-store - customer service\",\"newConstraints\":[{\"notWords\":\"\",\"andWords1\":\"\",\"andWords2\":\"\",\"keywords\":\"milk\"}]}";
 		 DiffResult result = new GrammarService().getDiff("ccc", "default", "csAllVolume", 1.0, requestBody, 1000);
