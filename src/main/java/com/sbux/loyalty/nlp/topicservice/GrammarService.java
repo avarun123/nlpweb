@@ -205,7 +205,7 @@ public class GrammarService  {
 			if(StringUtils.isBlank(getRules))
 				getRules = "false";
 			TopicGrammar grammar = TopicGrammarContainer.getTopicGrammar(modelName,versionNumber);
-			
+			//fillNodesWithNameAndPath(grammar);
 			String json = null;
 			
 			if("false".equalsIgnoreCase(getRules)) { // need only the node names. Strip rules from json
@@ -348,6 +348,7 @@ public class GrammarService  {
 	  @Path("{modelName}")
 	  @PUT
 	  @Consumes (MediaType.APPLICATION_JSON)
+	  @Produces("application/text")
 	  public Response updateModel(@PathParam("modelName") String modelName, @Context UriInfo ui,String json) throws Exception {
 		try {
 			// validate model
@@ -386,6 +387,7 @@ public class GrammarService  {
 	  @Path("{modelName}/path")
 	  @PUT
 	  @Consumes (MediaType.APPLICATION_JSON)
+	  @Produces("application/text")
 	  public Response updateModel(@PathParam("modelName") String modelName,@QueryParam("path") String path, @Context UriInfo ui,String json) throws Exception {
 		try {
 			// validate model
@@ -406,8 +408,8 @@ public class GrammarService  {
 			ModelValidator.ModelValidationResult modelValidationResult= new ModelValidator().validateModel(topicGrammar);
 			if(modelValidationResult.isSuccess()) {
 				// update the model with a new version
-			
-				double newVersion = updateConfigWithNewVersion(model, JsonConvertor.getJson(topicGrammar.getTopicNodes()));
+				 
+				double newVersion = updateConfigWithNewVersion(model, topicGrammar);
 				// TODO: store the diff
 				return Response.status(201).entity(newVersion+"").build();
 			} else {
@@ -431,6 +433,7 @@ public class GrammarService  {
 	  @Path("{modelName}/path")
 	  @GET
 	  @Consumes (MediaType.APPLICATION_JSON)
+	  @Produces("application/text")
 	  public Response getModelPath(@PathParam("modelName") String modelName,@QueryParam("path") String path, @Context UriInfo ui) throws Exception {
 		try {
 			// validate model
@@ -590,13 +593,34 @@ public class GrammarService  {
 	  /**
 	   * 
 	   * @param model
+	   * @param topicGrammar
+	   * @return
+	   * @throws IOException
+	   * @throws Exception
+	   */
+	  private synchronized double updateConfigWithNewVersion(RuleBasedModel model,TopicGrammar topicGrammar) throws IOException, Exception {
+		    // fillNodesWithNameAndPath(topicGrammar);
+		    String json = JsonConvertor.getJson(topicGrammar.getTopicNodes());
+		  	return updateConfigWithNewVersion(model, json);
+	  }
+	  
+	  private void fillNodesWithNameAndPath(TopicGrammar topicGrammar) {
+             for(TopicGrammarNode node:topicGrammar.getTopicNodes().values()){
+				 node.setName(node.getName() );
+				 node.setPath(node.getPath() ); // explicitly set Path so that it can be serialized into json
+			 }
+	  }
+	 
+	  /**
+	   * 
+	   * @param model
 	   * @param json
 	   * @return
 	   * @throws IOException
 	   * @throws Exception
 	   */
 	  private synchronized double updateConfigWithNewVersion(RuleBasedModel model,String json) throws IOException, Exception {
-		  	double newVersion = model.getCurrentVersion()+1.0;
+		    double newVersion = model.getCurrentVersion()+1.0;
 			String newVersionFilePath = model.getGrammarFileLocation()+"/"+newVersion+"/"+model.getFileName().replace(".csv",".json");
 			
 			// create new version file
@@ -608,6 +632,7 @@ public class GrammarService  {
 			GenericUtil.reset(); // reset the configuration
 			return newVersion;
 	  }
+	  
 	 public static void main(String[] args) throws InvalidGrammarException, Exception {
 //		 String requestBody = "{\"topicPath\":\"cs all volume|in-store experience|in-store - customer service\",\"newConstraints\":[{\"notWords\":\"\",\"andWords1\":\"\",\"andWords2\":\"\",\"keywords\":\"milk\"}]}";
 //		 DiffResult result = new GrammarService().getDiff("ccc", "default", "csAllVolume", 1.0, requestBody, 1000);
