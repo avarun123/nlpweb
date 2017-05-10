@@ -1,6 +1,7 @@
 package com.sbux.loyalty.nlp.topicservice;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,6 +17,7 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
@@ -381,10 +383,10 @@ public class GrammarService  {
 	   * @return
 	   * @throws Exception
 	   */
-	  @Path("{modelName}/path/{path}")
+	  @Path("{modelName}/path")
 	  @PUT
 	  @Consumes (MediaType.APPLICATION_JSON)
-	  public Response updateModel(@PathParam("modelName") String modelName,@PathParam("path") String path, @Context UriInfo ui,String json) throws Exception {
+	  public Response updateModel(@PathParam("modelName") String modelName,@QueryParam("path") String path, @Context UriInfo ui,String json) throws Exception {
 		try {
 			// validate model
 			RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
@@ -395,7 +397,11 @@ public class GrammarService  {
 			}
 			TopicGrammar topicGrammar = TopicGrammarContainer.getTopicGrammar(modelName, model.getCurrentVersion());
 			TopicGrammarNode node = topicGrammar.getNodeWithPath(path);
-			List<Constraint> constraints = JsonConvertor.getObjectFromJson(json, List.class);
+			if(node == null) {
+				return Response.status(404).entity("path "+path+" not found in model "+modelName).build();
+			}
+			Type collectionType = new TypeToken<List<Constraint>>(){}.getType();
+			List<Constraint> constraints = JsonConvertor.getObjectFromJson(json, collectionType);
 			node.setConstrainsts(constraints);
 			ModelValidator.ModelValidationResult modelValidationResult= new ModelValidator().validateModel(topicGrammar);
 			if(modelValidationResult.isSuccess()) {
@@ -570,9 +576,21 @@ public class GrammarService  {
 			return newVersion;
 	  }
 	 public static void main(String[] args) throws InvalidGrammarException, Exception {
-		 String requestBody = "{\"topicPath\":\"cs all volume|in-store experience|in-store - customer service\",\"newConstraints\":[{\"notWords\":\"\",\"andWords1\":\"\",\"andWords2\":\"\",\"keywords\":\"milk\"}]}";
-		 DiffResult result = new GrammarService().getDiff("ccc", "default", "csAllVolume", 1.0, requestBody, 1000);
-		 System.out.println(result.json);
+//		 String requestBody = "{\"topicPath\":\"cs all volume|in-store experience|in-store - customer service\",\"newConstraints\":[{\"notWords\":\"\",\"andWords1\":\"\",\"andWords2\":\"\",\"keywords\":\"milk\"}]}";
+//		 DiffResult result = new GrammarService().getDiff("ccc", "default", "csAllVolume", 1.0, requestBody, 1000);
+//		 System.out.println(result.json);
+		
+			
+		 TopicGrammar grammar = TopicGrammarContainer.getTopicGrammar("csAllVolume", 1.0);
+		 TopicGrammarNode node = grammar.getNodeWithPath("cs all volume|digital|digital - in-store wi-fi access");
+		 System.out.println(JsonConvertor.getJson(node.getConstrainsts()));
+		 String json = JsonConvertor.getJson(node.getConstrainsts());
+		 
+		 Type collectionType = new TypeToken<List<Constraint>>(){}.getType();
+		 
+		 List<Constraint> constraints = JsonConvertor.getObjectFromJson(json, collectionType);
+			node.setConstrainsts(constraints);
+			ModelValidator.ModelValidationResult modelValidationResult= new ModelValidator().validateModel(grammar);
 	 }
 	  
 
