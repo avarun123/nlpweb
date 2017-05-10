@@ -17,6 +17,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
@@ -344,7 +345,7 @@ public class GrammarService  {
 	   */
 	  @Path("{modelName}")
 	  @PUT
-	  @Consumes("application/text")
+	  @Consumes (MediaType.APPLICATION_JSON)
 	  public Response updateModel(@PathParam("modelName") String modelName, @Context UriInfo ui,String json) throws Exception {
 		try {
 			// validate model
@@ -367,7 +368,7 @@ public class GrammarService  {
 				model.setCurrentVersion(newVersion);
 				ConfigBean.storeConfig(ConfigBean.getInstance());
 				// TODO: store the diff
-				return Response.status(201).entity(newVersion).build();
+				return Response.status(201).entity(newVersion+"").build();
 			} else {
 				return Response.status(400).entity("Invalid model : Excption is " +JsonConvertor.getJson(modelValidationResult.getErrorMessages())).build();
 			}
@@ -469,7 +470,7 @@ public class GrammarService  {
 	  @Produces("application/text")
 	  public Response getCurrentVersionNo(@PathParam("modelName") String modelName, @Context UriInfo ui) throws Exception {
 		  double currentVersion = GenericUtil.getRuleBaseModel(modelName).getCurrentVersion();
-		  return Response.status(200).entity(currentVersion).build();
+		  return Response.status(200).entity(currentVersion+"").build();
 	  }
 	  
 	  

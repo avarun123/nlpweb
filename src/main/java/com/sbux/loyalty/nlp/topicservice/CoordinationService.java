@@ -15,6 +15,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.sbux.loyalty.nlp.config.ConfigBean;
+import com.sbux.loyalty.nlp.config.NameSpace;
+import com.sbux.loyalty.nlp.config.RuleBasedModel;
+import com.sbux.loyalty.nlp.util.GenericUtil;
 
 /**
  * This class does rule based topic detection. 
@@ -42,8 +45,7 @@ public class CoordinationService  {
 	  @GET
 	  public Response refreshConfig(@Context UriInfo ui)  {
 		  try {
-			  ConfigBean.instance = null;
-			  ConfigBean.getInstance();
+			 GenericUtil.reset();
 			  return Response.status(200).entity("Successfully refreshed configuration from cache").build();
 		  } catch(Exception e) {
 			  return Response.status(500).entity("Error occured whilre refreshing cache for configuration : "+e.getMessage()).build(); 

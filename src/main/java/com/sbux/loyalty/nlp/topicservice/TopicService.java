@@ -279,8 +279,9 @@ public class TopicService  {
 	 ConfigBean.propsFile = "sbux-datascience-nlp/config/config.properties";
 		     try {
 		    	//String jobid = new TopicDetectionProcess().doBulkTopicDetection("fsc", "ccc", "2016-08-01", "2016-08-31",null);
-		    	String jobid = new TopicDetectionProcess().doBulkTopicDetection("fsc", "ccc", "xLIBStarbucksCardMSRLibrary", 1.0, "2016-08-01", "2016-08-31",null);
+		    	//String jobid = new TopicDetectionProcess().doBulkTopicDetection("fsc", "ccc", "xLIBStarbucksCardMSRLibrary", 1.0, "2016-08-01", "2016-08-31",null);
 		    	 //String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "csLoyaltyContacts", 1.0, "2016-08-01", "2016-08-31",null);
+		    	 String jobid= "a4a026e3-c5af-448e-a0f2-7e7dd4a53888";
 		    	 while(true) {
 		    		 JobStatus status = JobStatusStore2.getInstance().getJobStatus(jobid);
 		 			 status.setPercentCompleted();
