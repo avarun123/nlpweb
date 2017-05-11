@@ -12,6 +12,7 @@ import java.util.Set;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.OPTIONS;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -62,7 +63,7 @@ import com.sbux.loyalty.nlp.util.TextCache;
  *
  */
 @Path("/model")
-public class GrammarService  {
+public class GrammarService  extends OptionsResource{
 	private static final Logger log = Logger.getLogger(GrammarService.class);
 	int MAX_COMPARISON_SET_SIZE = 2000;
 	public static final Map<String,Map<String,Integer>> topicCountCache = new HashMap<>();;
@@ -77,6 +78,7 @@ public class GrammarService  {
 		String result = jsonObject.toString();
 		return Response.status(200).entity(result).build();
 	  }
+	
 	
 	  /**
 	   * Returns all existing models and current version names
