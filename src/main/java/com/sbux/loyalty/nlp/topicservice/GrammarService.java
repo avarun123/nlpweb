@@ -430,7 +430,6 @@ public class GrammarService  {
 	   */
 	  @Path("{modelName}/node")
 	  @GET
-	  @Consumes (MediaType.APPLICATION_JSON)
 	  @Produces("text/plain")
 	  public Response getModelPath(@PathParam("modelName") String modelName,@QueryParam("path") String path, @Context UriInfo ui) throws Exception {
 		try {
