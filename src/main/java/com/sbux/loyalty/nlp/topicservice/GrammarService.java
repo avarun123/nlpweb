@@ -63,7 +63,7 @@ import com.sbux.loyalty.nlp.util.TextCache;
  *
  */
 @Path("/model")
-public class GrammarService  extends OptionsResource{
+public class GrammarService  {
 	private static final Logger log = Logger.getLogger(GrammarService.class);
 	int MAX_COMPARISON_SET_SIZE = 2000;
 	public static final Map<String,Map<String,Integer>> topicCountCache = new HashMap<>();;
@@ -79,6 +79,7 @@ public class GrammarService  extends OptionsResource{
 		return Response.status(200).entity(result).build();
 	  }
 	
+	   
 	
 	  /**
 	   * Returns all existing models and current version names
@@ -118,6 +119,13 @@ public class GrammarService  extends OptionsResource{
 		  return Response.status(diffResult.responseCode).entity(diffResult.json == null?diffResult.errorMEssage:diffResult.json ).build(); 
 	  }
 	  
+	    // Match OPTIONS
+	  	@Path("/diff/{channel}/{namespace}/{modelName}/{modelVersion}")
+	  	@OPTIONS
+		public  Response options_getDiff() {
+			return Response.status(Response.Status.NO_CONTENT).build();
+		}
+	  	
 	  
 	  @Path("/validate/{modelName}/{modelVersion}")
 	  @GET
@@ -375,6 +383,13 @@ public class GrammarService  extends OptionsResource{
 		}
 	  }
 	  
+	  // Match OPTIONS
+	  	@Path("{modelName}")
+	  	@OPTIONS
+		public  Response optionsAll() {
+			return Response.status(Response.Status.NO_CONTENT).build();
+		}
+	  
 	  
 	  
 	  /**
@@ -422,6 +437,12 @@ public class GrammarService  extends OptionsResource{
 	  }
 	  
 	  
+	  	// Match OPTIONS
+	  	@Path("{modelName}/node")
+	  	@OPTIONS
+		public  Response options_updateModel() {
+			return Response.status(Response.Status.NO_CONTENT).build();
+		}
 	  /**
 	   * Returns a given node specified by path argument
 	   * @param modelName
@@ -455,6 +476,7 @@ public class GrammarService  extends OptionsResource{
 		}
 	  }
 	  
+	
 	  /**
 	   * 
 	   * @param channel
