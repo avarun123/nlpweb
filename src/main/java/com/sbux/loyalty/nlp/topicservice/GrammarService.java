@@ -347,7 +347,7 @@ public class GrammarService  {
 	   */
 	  @Path("{modelName}")
 	  @PUT
-	  @Consumes (MediaType.APPLICATION_JSON)
+	  @Consumes (MediaType.TEXT_PLAIN)
 	  @Produces("text/plain")
 	  public Response updateModel(@PathParam("modelName") String modelName, @Context UriInfo ui,String json) throws Exception {
 		try {
@@ -386,8 +386,8 @@ public class GrammarService  {
 	   */
 	  @Path("{modelName}/node")
 	  @PUT
-	  @Consumes (MediaType.APPLICATION_JSON)
-	  @Produces("text/plain")
+	  @Consumes (MediaType.TEXT_PLAIN)
+	  @Produces(MediaType.TEXT_PLAIN)
 	  public Response updateModel(@PathParam("modelName") String modelName,@QueryParam("path") String path, @Context UriInfo ui,String json) throws Exception {
 		try {
 			// validate model
@@ -430,7 +430,7 @@ public class GrammarService  {
 	   */
 	  @Path("{modelName}/node")
 	  @GET
-	  @Produces("text/plain")
+	  @Produces(MediaType.TEXT_PLAIN)
 	  public Response getModelPath(@PathParam("modelName") String modelName,@QueryParam("path") String path, @Context UriInfo ui) throws Exception {
 		try {
 			// validate model
