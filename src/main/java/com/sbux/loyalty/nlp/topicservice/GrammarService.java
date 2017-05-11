@@ -68,7 +68,7 @@ public class GrammarService  {
 	public static final Map<String,Map<String,Integer>> topicCountCache = new HashMap<>();;
 	//private static Map<String,Map<String,Integer>> topicCountMap= new HashMap<>();
 	  @GET
-	  @Produces("application/text")
+	  @Produces("text/plain")
 	  public Response about() throws JSONException {
 
 		JSONObject jsonObject = new JSONObject();
@@ -88,7 +88,7 @@ public class GrammarService  {
 	   */
 	  @Path("models")
 	  @GET
-	  @Produces("application/text")
+	  @Produces("text/plain")
 	  public Response getAllModels(@PathParam("modelName") String modelName,@PathParam("version") double versionNumber, @Context UriInfo ui) throws Exception {
 		 try {
 			 ConfigBean.reset(); // force to get the latest from data source instead of cached configuration.
@@ -103,7 +103,7 @@ public class GrammarService  {
 	  
 	  @Path("/diff/{channel}/{namespace}/{modelName}/{modelVersion}")
 	  @POST
-	  @Produces("application/text")
+	  @Produces("text/plain")
 	  public Response getDiff(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("modelVersion") double modelVersion,@Context UriInfo ui,String requestBodyJson) throws Exception {
 		  MultivaluedMap<String, String> queryParams = ui.getQueryParameters();
 		  String size = queryParams.getFirst("limit");
@@ -196,7 +196,7 @@ public class GrammarService  {
 	 */
 	  @Path("{modelName}/{version}")
 	  @GET
-	  @Produces("application/text")
+	  @Produces("text/plain")
 	  public Response getModel(@PathParam("modelName") String modelName,@PathParam("version") double versionNumber, @Context UriInfo ui) throws Exception {
 		try {
 			MultivaluedMap<String, String> queryParams = ui.getQueryParameters();
@@ -230,7 +230,7 @@ public class GrammarService  {
 		 */
 		  @Path("{modelName}")
 		  @GET
-		  @Produces("application/text")
+		  @Produces("text/plain")
 		  public Response getModel(@PathParam("modelName") String modelName, @Context UriInfo ui) throws Exception {
 			return getModel(modelName, TopicGrammarContainer.CURRENT_VERSION, ui);
 		  }
@@ -244,7 +244,7 @@ public class GrammarService  {
 		   */
 		  @Path("cache/{modelName}")
 		  @DELETE
-		  @Produces("application/text")
+		  @Produces("text/plain")
 		  public Response deleteModelFromcache(@PathParam("modelName") String modelName, @Context UriInfo ui) {
 			  try {
 				double version = GenericUtil.getRuleBaseModel(modelName).getCurrentVersion();
@@ -266,7 +266,7 @@ public class GrammarService  {
 		   */
 		  @Path("cache/{modelName}/{version}")
 		  @DELETE
-		  @Produces("application/text")
+		  @Produces("text/plain")
 		  public Response deleteModelFromcache(@PathParam("modelName") String modelName, @PathParam("version") double version,@Context UriInfo ui) throws Exception {
 			TopicGrammarContainer.deleteFromCache(modelName, version);
 			return Response.status(200).entity("Successfully deleted model "+modelName+" version "+version+" from cache").build();
@@ -283,7 +283,7 @@ public class GrammarService  {
 		  */
 		  @Path("preview/{channel}/{namespace}")
 		  @POST
-		  @Produces("application/text")
+		  @Produces("text/plain")
 		  public Response getPreview(@PathParam("channel") String channel, @PathParam("namespace") String namespace,@Context UriInfo ui,String requestBody)  {
 			  try {
 				  ConstraintMatchMessage msg = JsonConvertor.getObjectFromJson(requestBody, ConstraintMatchMessage.class);
@@ -306,7 +306,7 @@ public class GrammarService  {
 		    */
 		  @Path("preview/warmup")
 		  @GET
-		  @Produces("application/text")
+		  @Produces("text/plain")
 		  public Response warmUpPreview(@Context UriInfo ui)  {
 			  try {
 				  	List<Constraint> l = new ArrayList<>();
@@ -348,7 +348,7 @@ public class GrammarService  {
 	  @Path("{modelName}")
 	  @PUT
 	  @Consumes (MediaType.APPLICATION_JSON)
-	  @Produces("application/text")
+	  @Produces("text/plain")
 	  public Response updateModel(@PathParam("modelName") String modelName, @Context UriInfo ui,String json) throws Exception {
 		try {
 			// validate model
@@ -387,7 +387,7 @@ public class GrammarService  {
 	  @Path("{modelName}/node")
 	  @PUT
 	  @Consumes (MediaType.APPLICATION_JSON)
-	  @Produces("application/text")
+	  @Produces("text/plain")
 	  public Response updateModel(@PathParam("modelName") String modelName,@QueryParam("path") String path, @Context UriInfo ui,String json) throws Exception {
 		try {
 			// validate model
@@ -431,7 +431,7 @@ public class GrammarService  {
 	  @Path("{modelName}/node")
 	  @GET
 	  @Consumes (MediaType.APPLICATION_JSON)
-	  @Produces("application/text")
+	  @Produces("text/plain")
 	  public Response getModelPath(@PathParam("modelName") String modelName,@QueryParam("path") String path, @Context UriInfo ui) throws Exception {
 		try {
 			// validate model
@@ -543,7 +543,7 @@ public class GrammarService  {
 	    */
 	  @Path("currentVersionNo/{modelName}")
 	  @GET
-	  @Produces("application/text")
+	  @Produces("text/plain")
 	  public Response getCurrentVersionNo(@PathParam("modelName") String modelName, @Context UriInfo ui) throws Exception {
 		  double currentVersion = GenericUtil.getRuleBaseModel(modelName).getCurrentVersion();
 		  return Response.status(200).entity(currentVersion+"").build();
