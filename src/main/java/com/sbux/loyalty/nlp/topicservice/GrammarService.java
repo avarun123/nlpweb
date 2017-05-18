@@ -297,7 +297,7 @@ public class GrammarService  {
 		  public Response getPreview(@PathParam("channel") String channel, @PathParam("namespace") String namespace,@Context UriInfo ui,String requestBody)  {
 			  try {
 				  ConstraintMatchMessage msg = JsonConvertor.getObjectFromJson(requestBody, ConstraintMatchMessage.class);
-				  List<MatchResponse> response = new OnlineConstraintMatcher().getMatchingTexts(msg);
+				  List<MatchResponse> response = new OnlineConstraintMatcher().getMatchingTexts(msg,false);
 				  String json = JsonConvertor.getJson(response);
 				  return Response.status(200).entity(json).build();
 			  } catch(InvalidPreviewRequestException e){
@@ -328,15 +328,15 @@ public class GrammarService  {
 					Filter filter = new Filter();
 					filter.setChannel("fsc");
 					filter.setNamespace("ccc");
-					filter.setModelName("xLIBStarbucksCardMSRLibrary");
+					//filter.setModelName("xLIBStarbucksCardMSRLibrary");
 					filter.setStartDt("2016-08-01");
 					filter.setEndDt("2016-08-01");
 					 
-					filter.setModelVersion(1.0);
+					//filter.setModelVersion(1.0);
 					ConstraintMatchMessage msg = new ConstraintMatchMessage(l, filter);
 					msg.setMinResponse(5);
 				
-					new OnlineConstraintMatcher().getMatchingTexts(msg);
+					new OnlineConstraintMatcher().getMatchingTexts(msg,false);
 				  return Response.status(200).entity("SUCCESS").build();
 			  } catch(InvalidPreviewRequestException e){
 				  log.info(e);
@@ -620,9 +620,10 @@ public class GrammarService  {
 	   * @throws Exception
 	   */
 	  private synchronized double updateConfigWithNewVersion(RuleBasedModel model,TopicGrammar topicGrammar) throws IOException, Exception {
-		    // fillNodesWithNameAndPath(topicGrammar);
+		  synchronized(model) {  
 		    String json = JsonConvertor.getJson(topicGrammar.getTopicNodes());
 		  	return updateConfigWithNewVersion(model, json);
+		  }
 	  }
 	  
 	  private void fillNodesWithNameAndPath(TopicGrammar topicGrammar) {
@@ -640,7 +641,8 @@ public class GrammarService  {
 	   * @throws IOException
 	   * @throws Exception
 	   */
-	  private synchronized double updateConfigWithNewVersion(RuleBasedModel model,String json) throws IOException, Exception {
+	  private  double updateConfigWithNewVersion(RuleBasedModel model,String json) throws IOException, Exception {
+		  synchronized(model) {  
 		    double newVersion = model.getCurrentVersion()+1.0;
 			String newVersionFilePath = model.getGrammarFileLocation()+"/"+newVersion+"/"+model.getFileName().replace(".csv",".json");
 			
@@ -652,6 +654,7 @@ public class GrammarService  {
 			ConfigBean.storeConfig(ConfigBean.getInstance());
 			GenericUtil.reset(); // reset the configuration
 			return newVersion;
+		  }
 	  }
 	  
 	 public static void main(String[] args) throws InvalidGrammarException, Exception {
