@@ -217,6 +217,7 @@ public class GrammarService  {
 			TopicGrammar grammar = TopicGrammarContainer.getTopicGrammar(modelName,versionNumber);
 			//fillNodesWithNameAndPath(grammar);
 			String json = null;
+			String eTag = grammar.geteTag();
 			
 			if("false".equalsIgnoreCase(getRules)) { // need only the node names. Strip rules from json
 				json = JsonConvertor.getJson(grammar.getTopicNodes().keySet());
@@ -224,7 +225,7 @@ public class GrammarService  {
 			} else {
 				json = JsonConvertor.getJson(grammar.getTopicNodes());
 			}
-			return Response.status(200).entity(json).build();
+			return Response.status(200).header("ETag", eTag).entity(json).build();
 		} catch(Exception e){
 			log.error(e);
 			throw e;
