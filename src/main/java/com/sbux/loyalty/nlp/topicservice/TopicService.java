@@ -30,6 +30,7 @@ import com.sbux.loyalty.nlp.config.ModelBinding;
 import com.sbux.loyalty.nlp.config.NameSpace;
 import com.sbux.loyalty.nlp.config.RuleBasedModel;
 import com.sbux.loyalty.nlp.core.TopicDetectionProcess;
+import com.sbux.loyalty.nlp.core.TopicDetectionProcess.TopicToTextOutBean;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
 import com.sbux.loyalty.nlp.jobstatus.JobNotFoundException;
@@ -133,8 +134,8 @@ public class TopicService  {
 			String limit = queryParams.getFirst("limit");
 			if(StringUtils.isNotBlank(limit))
 				limitTopicToText = Integer.parseInt(limit);
-			List<String> listOfTexts = GenericUtil.getTextsForTopic(channel, namespace, modelName, modelVersion, topicPath, limitTopicToText);
-			return Response.status(200).entity (StringUtils.join(listOfTexts,"\n")).build();
+			List<TopicToTextOutBean> listOfTexts = GenericUtil.getTextsForTopic(channel, namespace, modelName, modelVersion, topicPath, limitTopicToText);
+			return Response.status(200).entity (JsonConvertor.getJson(listOfTexts)).build();
 			
 		} catch(Exception e){
 			log.error(e);
@@ -157,8 +158,7 @@ public class TopicService  {
 	  @Produces("application/text")
 	  public Response getTopicTexts(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@QueryParam("path") String topicPath,@Context UriInfo ui) throws Exception {
 		try {
-			 
-			RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
+			 RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
 			return getTopicTexts(channel, namespace, modelName, model.getCurrentVersion(), topicPath,ui);
 		} catch(Exception e){
 			log.error(e);
