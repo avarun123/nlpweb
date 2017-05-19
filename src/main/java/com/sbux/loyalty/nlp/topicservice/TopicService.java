@@ -10,6 +10,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
@@ -122,10 +123,10 @@ public class TopicService  {
 	   * @return
 	   * @throws Exception
 	   */
-	  @Path("texts/{channel}/{namespace}/{modelName}/{modelVersion}/{topicPath}")
+	  @Path("texts/{channel}/{namespace}/{modelName}/{modelVersion}")
 	  @GET
 	  @Produces("application/text")
-	  public Response getTopicTexts(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("modelVersion") double modelVersion,@PathParam("topicPath") String topicPath,@Context UriInfo ui) throws Exception {
+	  public Response getTopicTexts(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("modelVersion") double modelVersion,@QueryParam("path") String topicPath,@Context UriInfo ui) throws Exception {
 		try {
 			int limitTopicToText = LIMIT_TOPICTOTEXT;
 			MultivaluedMap<String, String> queryParams = ui.getQueryParameters();
@@ -151,10 +152,10 @@ public class TopicService  {
 	   * @return
 	   * @throws Exception
 	   */
-	  @Path("texts/{channel}/{namespace}/{modelName}/{topicPath}")
+	  @Path("texts/{channel}/{namespace}/{modelName}")
 	  @GET
 	  @Produces("application/text")
-	  public Response getTopicTexts(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@PathParam("topicPath") String topicPath,@Context UriInfo ui) throws Exception {
+	  public Response getTopicTexts(@PathParam("channel") String channel,@PathParam("namespace") String namespace,@PathParam("modelName") String modelName,@QueryParam("path") String topicPath,@Context UriInfo ui) throws Exception {
 		try {
 			 
 			RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);

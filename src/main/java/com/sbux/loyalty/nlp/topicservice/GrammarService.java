@@ -294,10 +294,12 @@ public class GrammarService  {
 		  @Path("preview/{channel}/{namespace}")
 		  @POST
 		  @Produces("text/plain")
-		  public Response getPreview(@PathParam("channel") String channel, @PathParam("namespace") String namespace,@Context UriInfo ui,String requestBody)  {
+		  public Response getPreview(@PathParam("channel") String channel, @PathParam("namespace") String namespace,@QueryParam("diff") boolean diff,@Context UriInfo ui,String requestBody)  {
 			  try {
 				  ConstraintMatchMessage msg = JsonConvertor.getObjectFromJson(requestBody, ConstraintMatchMessage.class);
-				  List<MatchResponse> response = new OnlineConstraintMatcher().getMatchingTexts(msg,false);
+				  if(diff)
+					  msg.setDiffrequest(diff);
+				  List<MatchResponse> response = new OnlineConstraintMatcher().getMatchingTexts(msg,diff);
 				  String json = JsonConvertor.getJson(response);
 				  return Response.status(200).entity(json).build();
 			  } catch(InvalidPreviewRequestException e){
