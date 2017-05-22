@@ -376,7 +376,7 @@ public class GrammarService  {
 					ConfigBean instance = ConfigBean.getInstance();
 					String namespacesBasePath = instance.getNamespacesBasePath();
 					
-					String grammarFileLocation = namespacesBasePath + modelName + "/grammer";
+					String grammarFileLocation = namespacesBasePath + modelName + "/grammar";
 
 					modelNew.setActive("true");
 					modelNew.setCurrentVersion(defaultVersion);
