@@ -7,6 +7,7 @@ import java.util.concurrent.Executors;
 
 import javax.annotation.PreDestroy;
 import javax.ws.rs.GET;
+import javax.ws.rs.OPTIONS;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -33,6 +34,7 @@ import com.sbux.loyalty.nlp.core.TopicDetectionProcess;
 import com.sbux.loyalty.nlp.core.TopicDetectionProcess.TopicToTextOutBean;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient;
 import com.sbux.loyalty.nlp.core.datasources.DatasourceClient.DatasourceFile;
+import com.sbux.loyalty.nlp.core.datasources.S3Client;
 import com.sbux.loyalty.nlp.jobstatus.JobNotFoundException;
 import com.sbux.loyalty.nlp.jobstatus.JobStatus;
 import com.sbux.loyalty.nlp.jobstatus.JobStatusStore;
@@ -166,6 +168,19 @@ public class TopicService  {
 		}
 	  }
 	 
+	  // Match OPTIONS
+	  	@Path("texts/{channel}/{namespace}/{modelName}/{modelVersion}")
+	  	@OPTIONS
+		public  Response getTopicTexts_options() {
+			return Response.status(Response.Status.NO_CONTENT).build();
+		}
+	  	
+	 // Match OPTIONS
+	  	@Path("texts/{channel}/{namespace}/{modelName}")
+	  	@OPTIONS
+		public  Response getTopicTexts_options2() {
+			return Response.status(Response.Status.NO_CONTENT).build();
+		}
 	
 	 /**
 	  * Runs topic detection for a model and a model version
@@ -279,8 +294,9 @@ public class TopicService  {
 	  public static void main(String[] args)   {
 	 ConfigBean.propsFile = "sbux-datascience-nlp/config/config.properties";
 		     try {
-		    	//String jobid = new TopicDetectionProcess().doBulkTopicDetection("fsc", "ccc", "2016-08-01", "2016-08-31",null);
-		    	String jobid = new TopicDetectionProcess().doBulkTopicDetection("fsc", "ccc", "csAllVolume", 1.0, "2017-04-02", "2017-05-02",null);
+		    	// System.out.println(S3Client.getInstance().getListOfFilesInFolder("sbux-datascience-nlp/jobmetadata/errored/5b92e575-1e36-414a-a5ce-eaf00a46443b").size());
+		    	String jobid = new TopicDetectionProcess().doBulkTopicDetection("fsc", "ccc", "2016-08-01", "2016-08-31",null);
+		    	//String jobid = new TopicDetectionProcess().doBulkTopicDetection("fsc", "ccc", "csDigitalContacts", 1.0, "2016-08-01", "2016-08-31",null);
 		    	 //String jobid = new TopicDetectionProcess().doBulkTopicDetection("ccc", "default", "csLoyaltyContacts", 1.0, "2016-08-01", "2016-08-31",null);
 		    	// String jobid= "fb1f8049-1b41-4e11-9117-f39f95cda7d7";
 		    	 while(true) {
