@@ -372,25 +372,7 @@ public class GrammarService  {
 				RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
 				if(model == null) {
 					// JIRA - https://starbucks-analytics.atlassian.net/browse/DS-1056
-					RuleBasedModel modelNew = new RuleBasedModel();
-					double defaultVersion = 1.0;
-					String filename = modelName+"_refined.json";
-					ConfigBean instance = ConfigBean.getInstance();
-					String namespacesBasePath = instance.getNamespacesBasePath();
-					
-					String grammarFileLocation = namespacesBasePath + modelName + "/grammar";
-
-					modelNew.setActive("true");
-					modelNew.setCurrentVersion(defaultVersion);
-					modelNew.setFileName(filename);
-					modelNew.setAlias(modelName);
-					modelNew.setName(modelName);
-					modelNew.setGrammarFileLocation(grammarFileLocation);
-					
-					instance.getRuleBasedModels().add(modelNew);
-					ConfigBean.setInstance(instance);
-					
-					newVersion = createConfigWithDefaultVersion(modelNew, json);
+					newVersion = createNewModel(modelName,json);
 					
 				}
 				else
@@ -415,6 +397,34 @@ public class GrammarService  {
 			return Response.status(Response.Status.NO_CONTENT).build();
 		}
 	  
+	  	/**
+	  	 * 
+	  	 * @param modelName
+	  	 * @throws Exception 
+	  	 */
+	  	private double createNewModel(String modelName,String json) throws Exception {
+	  	
+			RuleBasedModel modelNew = new RuleBasedModel();
+			double defaultVersion = 1.0;
+			String filename = modelName+".json";
+			ConfigBean instance = ConfigBean.getInstance();
+			String namespacesBasePath = instance.getNamespacesBasePath();
+			
+			String grammarFileLocation = namespacesBasePath + modelName + "/grammar";
+
+			modelNew.setActive("true");
+			modelNew.setCurrentVersion(defaultVersion);
+			modelNew.setFileName(filename);
+			modelNew.setAlias(modelName);
+			modelNew.setName(modelName);
+			modelNew.setGrammarFileLocation(grammarFileLocation);
+			
+			instance.getRuleBasedModels().add(modelNew);
+			ConfigBean.setInstance(instance);
+			
+			double newVersion = createConfigWithDefaultVersion(modelNew, json);
+			return newVersion;
+	  	}
 	  
 	  
 	  /**
