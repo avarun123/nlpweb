@@ -109,9 +109,7 @@ public class StatsService  {
 			    	} else {
 			    		topicCountAggregate.put(key,topicCountAggregate.get(key)+value);
 			    	}
-			    });
-			   
-			    
+			    }); 
 			}
 			String json = JsonConvertor.getJson(topicCountMap);
 			return Response.status(200).entity(json).build();
@@ -155,6 +153,9 @@ public class StatsService  {
 					   }
 				  }
 			  }
+			  String outputFolder=topicCOuntFolder + "/data.txt";
+			  String topicAggCounts = JsonConvertor.getJson(retValue);
+			  DatasourceClient.getDefaultDatasourceClient().createFile(outputFolder , topicAggCounts);
 			  return retValue;
 		  }
 	  }

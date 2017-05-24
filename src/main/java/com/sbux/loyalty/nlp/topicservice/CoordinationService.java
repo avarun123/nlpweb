@@ -1,23 +1,31 @@
 package com.sbux.loyalty.nlp.topicservice;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.sbux.loyalty.nlp.config.ConfigBean;
+import com.sbux.loyalty.nlp.config.Metadata;
 import com.sbux.loyalty.nlp.config.NameSpace;
 import com.sbux.loyalty.nlp.config.RuleBasedModel;
+import com.sbux.loyalty.nlp.topicservice.GrammarService.DiffResult;
 import com.sbux.loyalty.nlp.util.GenericUtil;
+import com.sbux.loyalty.nlp.util.JsonConvertor;
 
 /**
  * This class does rule based topic detection. 
@@ -52,6 +60,27 @@ public class CoordinationService  {
 		  }
 	  }
 	 
+	  @Path("config/metadata/{channel}/{namespace}")
+	  @GET
+	  @Produces("text/plain")
+	  public Response getMetaData(@PathParam("channel") String channel,@PathParam("namespace") String namespace) throws Exception {
+		  try {
+			  ConfigBean.reset(); // force to get the latest from data source instead of cached configuration.
+			  NameSpace ns = GenericUtil.getNamespace(channel, namespace);
+			  Map<String,Metadata> metadataMapping = ns.getMetaDataMapping();
+			  ArrayList<String> metadataNames = new ArrayList<String>();
+			  for(Metadata metadata:metadataMapping.values())
+			  {
+				  metadataNames.add(metadata.getValue());
+			  }
+			  String json = JsonConvertor.getJson(metadataNames);
+			  return Response.status(200).entity(json).build();
+		  } catch(Exception e){
+			  log.error(e);
+			  return Response.status(500).entity(e.getMessage()).build();
+		  }
+	  }
+
 //	  @Path("progress/{taskId}/{sequenceId}")
 //	  @GET
 //	  public Response updateTaskProgress(@PathParam("taskId") String taskId,@PathParam("sequenceId") int sequenceId,@Context UriInfo ui) throws Exception {

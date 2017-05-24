@@ -30,7 +30,6 @@ import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.amazonaws.services.kinesis.model.InvalidArgumentException;
 import com.google.gson.reflect.TypeToken;
 import com.sbux.loyalty.nlp.Exception.InvalidGrammarException;
 import com.sbux.loyalty.nlp.commands.JsonFileInputParseCommand;
@@ -44,11 +43,11 @@ import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor;
 import com.sbux.loyalty.nlp.grammar.GrammarDeltaProcessor.GrammarDelta;
 import com.sbux.loyalty.nlp.grammar.InvalidPreviewRequestException;
 import com.sbux.loyalty.nlp.grammar.ModelValidator;
+import com.sbux.loyalty.nlp.grammar.ModelValidator.ModelValidationResult;
 import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher;
 import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher.ConstraintMatchMessage;
 import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher.Filter;
 import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher.MatchResponse;
-import com.sbux.loyalty.nlp.grammar.ModelValidator.ModelValidationResult;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar.Constraint;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammarNode;
@@ -217,6 +216,7 @@ public class GrammarService  {
 			TopicGrammar grammar = TopicGrammarContainer.getTopicGrammar(modelName,versionNumber);
 			//fillNodesWithNameAndPath(grammar);
 			String json = null;
+			String eTag = grammar.geteTag();
 			
 			if("false".equalsIgnoreCase(getRules)) { // need only the node names. Strip rules from json
 				json = JsonConvertor.getJson(grammar.getTopicNodes().keySet());
@@ -224,7 +224,7 @@ public class GrammarService  {
 			} else {
 				json = JsonConvertor.getJson(grammar.getTopicNodes());
 			}
-			return Response.status(200).entity(json).build();
+			return Response.status(200).header("ETag", eTag).entity(json).build();
 		} catch(Exception e){
 			log.error(e);
 			throw e;
@@ -365,15 +365,38 @@ public class GrammarService  {
 		try {
 			// validate model
 			ModelValidator.ModelValidationResult modelValidationResult= new ModelValidator().validateModel(json);
+			
 			if(modelValidationResult.isSuccess()) {
+				double newVersion = 1.0;
 				// update the model with a new version
 				RuleBasedModel model = GenericUtil.getRuleBaseModel(modelName);
 				if(model == null) {
-					// TODO - this needs to implement creation of a new model if it is not already existing.
 					// JIRA - https://starbucks-analytics.atlassian.net/browse/DS-1056
-					throw new InvalidArgumentException("Model is not existing. Feature to create a model through API is not yet implemented");
+					RuleBasedModel modelNew = new RuleBasedModel();
+					double defaultVersion = 1.0;
+					String filename = modelName+"_refined.json";
+					ConfigBean instance = ConfigBean.getInstance();
+					String namespacesBasePath = instance.getNamespacesBasePath();
+					
+					String grammarFileLocation = namespacesBasePath + modelName + "/grammar";
+
+					modelNew.setActive("true");
+					modelNew.setCurrentVersion(defaultVersion);
+					modelNew.setFileName(filename);
+					modelNew.setAlias(modelName);
+					modelNew.setName(modelName);
+					modelNew.setGrammarFileLocation(grammarFileLocation);
+					
+					instance.getRuleBasedModels().add(modelNew);
+					ConfigBean.setInstance(instance);
+					
+					newVersion = createConfigWithDefaultVersion(modelNew, json);
+					
 				}
-				double newVersion = updateConfigWithNewVersion(model, json);
+				else
+				{
+					newVersion = updateConfigWithNewVersion(model, json);
+				}
 				// TODO: store the diff
 				return Response.status(201).entity(newVersion+"").build();
 			} else {
@@ -634,7 +657,29 @@ public class GrammarService  {
 				 node.setPath(node.getPath() ); // explicitly set Path so that it can be serialized into json
 			 }
 	  }
-	 
+
+	  /**
+	   * 
+	   * @param model
+	   * @param json
+	   * @return
+	   * @throws IOException
+	   * @throws Exception
+	   */
+	  private synchronized double createConfigWithDefaultVersion(RuleBasedModel model,String json) throws IOException, Exception {
+		    double newVersion = 1.0;
+			String newVersionFilePath = model.getGrammarFileLocation()+"/1.0/"+model.getFileName().replace(".csv",".json");
+			
+			// create new version file
+			DatasourceClient.getDefaultDatasourceClient().createFile(newVersionFilePath, json);
+			
+			// update the current version to new version
+			model.setCurrentVersion(newVersion);
+			ConfigBean.storeConfig(ConfigBean.getInstance());
+			GenericUtil.reset(); // reset the configuration
+			return newVersion;
+	  }
+	  
 	  /**
 	   * 
 	   * @param model
