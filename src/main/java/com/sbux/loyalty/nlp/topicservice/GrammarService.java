@@ -48,6 +48,7 @@ import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher;
 import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher.ConstraintMatchMessage;
 import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher.Filter;
 import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher.MatchResponse;
+import com.sbux.loyalty.nlp.grammar.OnlineConstraintMatcher.StatsResponse;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar.Constraint;
 import com.sbux.loyalty.nlp.grammar.TopicGrammar.TopicGrammarNode;
@@ -299,8 +300,9 @@ public class GrammarService  {
 				  ConstraintMatchMessage msg = JsonConvertor.getObjectFromJson(requestBody, ConstraintMatchMessage.class);
 				  if(diff)
 					  msg.setDiffrequest(diff);
-				  List<MatchResponse> response = new OnlineConstraintMatcher().getMatchingTexts(msg,diff);
-				  String json = JsonConvertor.getJson(response);
+				  OnlineConstraintMatcher matcher =    new OnlineConstraintMatcher();
+				  List<MatchResponse> response = matcher.getMatchingTexts(msg,diff);
+				  String json = JsonConvertor.getJson(new PreviewResponse(response, matcher.getJobId()));
 				  return Response.status(200).entity(json).build();
 			  } catch(InvalidPreviewRequestException e){
 				  log.info(e);
@@ -310,6 +312,79 @@ public class GrammarService  {
 				  return Response.status(500).entity(e1.getMessage()).build();
 			  }
 		  }
+		  
+		  private static class PreviewResponse {
+			  String jobId;
+			  List<MatchResponse> response;
+			  
+			public PreviewResponse(List<MatchResponse> response, String jobId) {
+				super();
+				this.response = response;
+				this.jobId = jobId;
+			}
+			  
+		  }
+		  
+	  /**
+		  * Returns the counts of matching previews
+		  * @param channel
+		  * @param namespace
+		  * @param ui
+		  * @param requestBody
+		  * @return
+		  */
+		  @Path("preview/stats/{jobId}")
+		  @GET
+		  @Produces("text/plain")
+		  public Response getPreviewStats(@PathParam("jobId") String jobId,@Context UriInfo ui,String requestBody)  {
+			  try {
+				  Map<String,StatsResponse> responseMap = OnlineConstraintMatcher.statsResponseMap.get(jobId);
+				  if(responseMap == null) {
+					  return Response.status(404).entity("job id "+jobId+" not found").build();
+				  }
+				  String json = JsonConvertor.getJson(responseMap);
+				  return Response.status(200).entity(json).build();
+			  } catch(InvalidPreviewRequestException e){
+				  log.info(e);
+				  return Response.status(400).entity(e.getMessage()).build();
+			  } catch(Exception e1){
+				  log.error(e1);
+				  return Response.status(500).entity(e1.getMessage()).build();
+			  }
+		  }
+		 
+		  
+			  @Path("preview/{jobId}/{startOffset}/{endOffset}")
+			  @GET
+			  @Produces("text/plain")
+			  public Response getPreview(@PathParam("jobId") String jobId,@PathParam("startOffset") int startOffset,@PathParam("endOffset") int endOffset,@Context UriInfo ui,String requestBody)  {
+				  try {
+					  if(startOffset > endOffset){
+						  return Response.status(403).entity("start offset "+startOffset+" is greater than end offset "+endOffset).build();
+					  }
+					  List<MatchResponse> responseList = OnlineConstraintMatcher.resultRsponseMap.get(jobId);
+					  if(responseList == null) {
+						  return Response.status(404).entity("job id "+jobId+" not found").build();
+					  }
+					  
+					  
+					  if(responseList.size()<endOffset) {
+						  endOffset = responseList.size();
+					  }
+					  List<MatchResponse> resultList = new ArrayList<>(); 
+					  for(int i=startOffset-1;i<endOffset;i++){
+						  resultList.add(responseList.get(i));
+					  }
+					  String json = JsonConvertor.getJson(new PreviewResponse(resultList, jobId));
+					  return Response.status(200).entity(json).build();
+				  } catch(InvalidPreviewRequestException e){
+					  log.info(e);
+					  return Response.status(400).entity(e.getMessage()).build();
+				  } catch(Exception e1){
+					  log.error(e1);
+					  return Response.status(500).entity(e1.getMessage()).build();
+				  }
+			  }
 		  
 		   /**
 		    * warms up the preview request so that lambda is ready and set to go 
@@ -408,9 +483,9 @@ public class GrammarService  {
 			double defaultVersion = 1.0;
 			String filename = modelName+".json";
 			ConfigBean instance = ConfigBean.getInstance();
-			String namespacesBasePath = instance.getNamespacesBasePath();
+			String namespacesBasePath = instance.getModelFileBasePath();
 			
-			String grammarFileLocation = namespacesBasePath + modelName + "/grammar";
+			String grammarFileLocation = namespacesBasePath + "/"+modelName + "/grammar";
 
 			modelNew.setActive("true");
 			modelNew.setCurrentVersion(defaultVersion);
